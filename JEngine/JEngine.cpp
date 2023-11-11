@@ -25,6 +25,7 @@ using std::string;
 
 int main()
 {
+    // This is for testing
     string user_input;
     cout << "Enter input:" << endl;
     cin >> user_input;
