@@ -33,9 +33,10 @@ private:
 public:
     JSONObject();
     JSONObject(string);
+    string JSONString(bool);
     void additem(string, string);
-    void print();
     bool parse(string);
+    void print(bool);
 };
 
 JSONObject::JSONObject() {
@@ -46,23 +47,48 @@ JSONObject::JSONObject(string Input) {
     this->parse(Input);
 }
 
+string JSONObject::JSONString(bool indent) {
+    map<string, string>::iterator it = Items.begin();
+    map<string, string>::iterator it_next = Items.begin();
+    if (it_next != Items.end()) {
+        ++it_next;
+    }
+
+    string JSONString = "";
+    // Iterate through the map and append the elements
+    JSONString.append("{");
+    while (it != Items.end()) {
+        if (indent) {
+            JSONString.append("\n   ");
+        }
+        JSONString.append("\"");
+        JSONString.append(it->first);
+        JSONString.append("\"");
+        JSONString.append(":");
+        JSONString.append("\"");
+        JSONString.append(it->second);
+        JSONString.append("\"");
+        if (it_next != Items.end()) {
+            JSONString.append(",");
+        }
+        ++it;
+        if (it_next != Items.end()) {
+            ++it_next;
+        }
+    }
+    if (indent) {
+        JSONString.append("\n");
+    }
+    JSONString.append("}");
+    return JSONString;
+}
+
 void JSONObject::additem(string Item, string Value) {
     Items[Item] = Value;
 }
-void JSONObject::print() {
-    map<string, string>::iterator it = Items.begin();
-
-    // Iterate through the map and print the elements
-    cout << "{" << endl;
-    while (it != Items.end()) {
-        cout << "   " << "\"" << it->first << "\"" << ":" << "\"" << it->second << "\"" << endl;
-        ++it;
-    }
-    cout << "}" << endl;
-}
 
 bool JSONObject::parse(string input) {
-    bool suceed = true;
+    bool sucess = true;
     const string delim = "  {}:\"\n";
     char *token;
     char *next_token;
@@ -73,6 +99,10 @@ bool JSONObject::parse(string input) {
 
     Items.clear();
     token = strtok_s(buffer, delim.c_str(), &next_token);
+    if (token == NULL) {
+        sucess = false;
+    }
+
     while (token != NULL)
     {
         if (item.empty()) {
@@ -86,7 +116,16 @@ bool JSONObject::parse(string input) {
         }
         token = strtok_s(NULL, delim.c_str(), &next_token);
     }
-    return suceed;
+
+    if (!item.empty() || !value.empty()) {
+        sucess = false;
+    }
+
+    return sucess;
+}
+
+void JSONObject::print(bool indent) {
+    cout << this->JSONString(indent) << endl;
 }
 
 int main()
@@ -102,14 +141,21 @@ int main()
     jo.additem("Age", "27");
     jo.additem("Gender", "Male");
 
-    jo.print();
+
+    cout << "manually added items to jo: " << endl;
+    jo.print(true);
 
     jo.parse(parse_test);
 
-    jo.print();
+    cout << "jo after parse " << endl;
+    jo.print(true);
 
     JSONObject jo2(parse_test2);
-    jo2.print();
+    cout << "jo2 built with constructor from string: " << endl;
+    jo2.print(true);
+
+    cout << "jo2 JSON string: " << endl;
+    cout << jo2.JSONString(false) << endl;
 
     cout << "Enter array size:" << endl;
     cin >> size;
