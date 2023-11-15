@@ -53,6 +53,8 @@ public:
     void additem(string, char);
     void additem(string, char*);
     bool parse(string);
+    string get(string);
+    bool exists(string);
     void print(bool);
     map<string, string>::iterator begin();
     map<string, string>::iterator end();
@@ -74,19 +76,22 @@ JSONObject::JSONObject(string Input) {
 }
 
 string JSONObject::JSONString(bool indent) {
+    string JSONString = "";
     this->it_internal = Items.begin();
     this->it_internal_next = Items.begin();
+
     if (it_internal_next != Items.end()) {
         ++it_internal_next;
     }
 
-    string JSONString = "";
     // Iterate through the map and append the elements
     JSONString.append("{");
     while (it_internal != Items.end()) {
+
         if (indent) {
             JSONString.append("\n   ");
         }
+
         JSONString.append("\"");
         JSONString.append(it_internal->first);
         JSONString.append("\"");
@@ -94,17 +99,22 @@ string JSONObject::JSONString(bool indent) {
         JSONString.append("\"");
         JSONString.append(it_internal->second);
         JSONString.append("\"");
+
         if (it_internal_next != Items.end()) {
             JSONString.append(",");
         }
+
         ++it_internal;
+
         if (it_internal_next != Items.end()) {
             ++it_internal_next;
         }
     }
+
     if (indent) {
         JSONString.append("\n");
     }
+
     JSONString.append("}");
     return JSONString;
 }
@@ -213,7 +223,25 @@ map<string, string>::iterator JSONObject::begin() {
 
 map<string, string>::iterator JSONObject::end() {
     return Items.end();
+}
 
+string JSONObject::get(string Item) {
+    if (this->exists(Item)) {
+        return Items[Item];
+    }
+    else {
+        return "";
+    }
+}
+
+bool JSONObject::exists(string Item) {
+    it_internal = Items.find(Item);
+    if (it_internal == Items.end()) {
+        return false;
+    }
+    else {
+        return true;
+    }
 }
 
 void JSONObject::print(bool indent) {
@@ -251,6 +279,8 @@ int main()
 
     map<string, string>::iterator iterb = jo2.begin();
     map<string, string>::iterator itere = jo2.end();
+
+    cout << "jo2 exists Make: " << jo2.exists("Make") << " jo2 find Make: " << jo2.get("Make") << endl;
 
 
 
