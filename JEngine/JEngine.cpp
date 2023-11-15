@@ -16,6 +16,7 @@
 
 
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <map>
 #include <errno.h>
@@ -38,6 +39,7 @@ public:
     map<string, string>::iterator iterator;
     JSONObject();
     JSONObject(string);
+    JSONObject(JSONObject &obj);
     string JSONString(bool);
     void additem(string, string);
     void additem(string, bool);
@@ -74,6 +76,11 @@ JSONObject::JSONObject(string Input) {
         ++it_internal_next;
     }
 }
+
+JSONObject::JSONObject(JSONObject &Obj) {
+    this->parse(Obj.JSONString(false));
+}
+
 
 string JSONObject::JSONString(bool indent) {
     string JSONString = "";
@@ -255,6 +262,7 @@ int main()
     int* array;
     string parse_test = "{\n    \"Name\":\"Glenn\"\n    \"Age\":\"28\"\n}";
     string parse_test2 = "{\n    \"Make\":\"Ford\"\n    \"Model\":\"F150\"\n}";
+    string directory = "C:\JEngine";
 
     JSONObject jo;
     jo.additem("Name", "Glenn");
@@ -281,6 +289,16 @@ int main()
     map<string, string>::iterator itere = jo2.end();
 
     cout << "jo2 exists Make: " << jo2.exists("Make") << " jo2 find Make: " << jo2.get("Make") << endl;
+
+    cout << "Jo and jo2 before copy" << endl;
+    jo.print(true);
+    jo2.print(true);
+
+    cout << "Jo and jo2 after copy" << endl;
+    jo2 = jo;
+    jo.print(true);
+    jo2.print(true);
+
 
 
 
