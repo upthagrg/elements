@@ -26,54 +26,80 @@ using std::cin;
 using std::endl;
 using std::string;
 using std::map;
+using std::to_string;
 
 class JSONObject {
 private:
     map<string, string> Items;
+    map<string, string>::iterator it_internal;
+    map<string, string>::iterator it_internal_next;
+
 public:
+    map<string, string>::iterator iterator;
     JSONObject();
     JSONObject(string);
     string JSONString(bool);
     void additem(string, string);
+    void additem(string, bool);
+    void additem(string, int);
+    void additem(string, unsigned int);
+    void additem(string, long);
+    void additem(string, unsigned long);
+    void additem(string, long long);
+    void additem(string, unsigned long long);
+    void additem(string, double);
+    void additem(string, float);
+    void additem(string, long double);
+    void additem(string, char);
+    void additem(string, char*);
     bool parse(string);
     void print(bool);
+    map<string, string>::iterator begin();
+    map<string, string>::iterator end();
 };
 
 JSONObject::JSONObject() {
     Items.clear();
+    it_internal = Items.begin();
+    it_internal_next = Items.begin();
 }
 
 JSONObject::JSONObject(string Input) {
     this->parse(Input);
+    it_internal = Items.begin();
+    it_internal_next = Items.begin();
+    if (it_internal_next != Items.end()) {
+        ++it_internal_next;
+    }
 }
 
 string JSONObject::JSONString(bool indent) {
-    map<string, string>::iterator it = Items.begin();
-    map<string, string>::iterator it_next = Items.begin();
-    if (it_next != Items.end()) {
-        ++it_next;
+    this->it_internal = Items.begin();
+    this->it_internal_next = Items.begin();
+    if (it_internal_next != Items.end()) {
+        ++it_internal_next;
     }
 
     string JSONString = "";
     // Iterate through the map and append the elements
     JSONString.append("{");
-    while (it != Items.end()) {
+    while (it_internal != Items.end()) {
         if (indent) {
             JSONString.append("\n   ");
         }
         JSONString.append("\"");
-        JSONString.append(it->first);
+        JSONString.append(it_internal->first);
         JSONString.append("\"");
         JSONString.append(":");
         JSONString.append("\"");
-        JSONString.append(it->second);
+        JSONString.append(it_internal->second);
         JSONString.append("\"");
-        if (it_next != Items.end()) {
+        if (it_internal_next != Items.end()) {
             JSONString.append(",");
         }
-        ++it;
-        if (it_next != Items.end()) {
-            ++it_next;
+        ++it_internal;
+        if (it_internal_next != Items.end()) {
+            ++it_internal_next;
         }
     }
     if (indent) {
@@ -84,6 +110,63 @@ string JSONObject::JSONString(bool indent) {
 }
 
 void JSONObject::additem(string Item, string Value) {
+    Items[Item] = Value;
+}
+
+void JSONObject::additem(string Item, bool Value) {
+    if (Value) {
+        Items[Item] = "1";
+    }
+    else {
+        Items[Item] = "0";
+    }
+}
+
+void JSONObject::additem(string Item, int Value) {
+    Items[Item] = to_string(Value);
+}
+
+void JSONObject::additem(string Item, unsigned int Value) {
+    Items[Item] = to_string(Value);
+}
+
+void JSONObject::additem(string Item, long Value) {
+    Items[Item] = to_string(Value);
+}
+
+void JSONObject::additem(string Item, unsigned long Value) {
+    Items[Item] = to_string(Value);
+}
+
+void JSONObject::additem(string Item, long long Value) {
+    Items[Item] = to_string(Value);
+}
+
+void JSONObject::additem(string Item, unsigned long long Value) {
+    Items[Item] = to_string(Value);
+}
+
+void JSONObject::additem(string Item, double Value) {
+    Items[Item] = to_string(Value);
+}
+
+void JSONObject::additem(string Item, float Value) {
+    Items[Item] = to_string(Value);
+}
+
+void JSONObject::additem(string Item, long  double Value) {
+    Items[Item] = to_string(Value);
+}
+
+void JSONObject::additem(string Item, char Value) {
+    string tmp = "";
+    tmp += Value;
+    Items[Item] = Value;
+}
+
+void JSONObject::additem(string Item, char* Value) {
+    string tmp;
+    tmp.assign(Value);
     Items[Item] = Value;
 }
 
@@ -124,6 +207,15 @@ bool JSONObject::parse(string input) {
     return sucess;
 }
 
+map<string, string>::iterator JSONObject::begin() {
+    return Items.begin();
+}
+
+map<string, string>::iterator JSONObject::end() {
+    return Items.end();
+
+}
+
 void JSONObject::print(bool indent) {
     cout << this->JSONString(indent) << endl;
 }
@@ -156,6 +248,16 @@ int main()
 
     cout << "jo2 JSON string: " << endl;
     cout << jo2.JSONString(false) << endl;
+
+    map<string, string>::iterator iterb = jo2.begin();
+    map<string, string>::iterator itere = jo2.end();
+
+
+
+
+
+
+
 
     cout << "Enter array size:" << endl;
     cin >> size;
