@@ -17,17 +17,111 @@
 
 #include <iostream>
 #include <string>
+#include <map>
+#include <errno.h>
+#include "garbage.hpp"
 
 using std::cout;
 using std::cin;
 using std::endl;
 using std::string;
+using std::map;
+
+class JSONObject {
+private:
+    map<string, string> Items;
+public:
+    JSONObject();
+    JSONObject(string);
+    void additem(string, string);
+    void print();
+    bool parse(string);
+};
+
+JSONObject::JSONObject() {
+    Items.clear();
+}
+
+JSONObject::JSONObject(string Input) {
+    this->parse(Input);
+}
+
+void JSONObject::additem(string Item, string Value) {
+    Items[Item] = Value;
+}
+void JSONObject::print() {
+    map<string, string>::iterator it = Items.begin();
+
+    // Iterate through the map and print the elements
+    cout << "{" << endl;
+    while (it != Items.end()) {
+        cout << "   " << "\"" << it->first << "\"" << ":" << "\"" << it->second << "\"" << endl;
+        ++it;
+    }
+    cout << "}" << endl;
+}
+
+bool JSONObject::parse(string input) {
+    bool suceed = true;
+    const string delim = "  {}:\"\n";
+    char *token;
+    char *next_token;
+    string item = "";
+    string value = "";
+    char *buffer = new char[input.length() + 1];
+    errno_t ret = strcpy_s(buffer, input.length() + 1, input.c_str());
+
+    Items.clear();
+    token = strtok_s(buffer, delim.c_str(), &next_token);
+    while (token != NULL)
+    {
+        if (item.empty()) {
+            item.assign(token);
+        }
+        else{
+            value.assign(token);
+            this->additem(item, value);
+            item = "";
+            value = "";
+        }
+        token = strtok_s(NULL, delim.c_str(), &next_token);
+    }
+    return suceed;
+}
 
 int main()
 {
     // This is for testing
-    string user_input;
-    cout << "Enter input:" << endl;
-    cin >> user_input;
-    cout << "You entered: " << user_input << endl;
+    int size;
+    int* array;
+    string parse_test = "{\n    \"Name\":\"Glenn\"\n    \"Age\":\"28\"\n}";
+    string parse_test2 = "{\n    \"Make\":\"Ford\"\n    \"Model\":\"F150\"\n}";
+
+    JSONObject jo;
+    jo.additem("Name", "Glenn");
+    jo.additem("Age", "27");
+    jo.additem("Gender", "Male");
+
+    jo.print();
+
+    jo.parse(parse_test);
+
+    jo.print();
+
+    JSONObject jo2(parse_test2);
+    jo2.print();
+
+    cout << "Enter array size:" << endl;
+    cin >> size;
+    array = new int[size];
+    for (int i = 0; i < size; i++) {
+        cout << "enter a number " << endl;
+        cin >> array[i];
+    }
+    cout << "You enetered:" << endl;
+    for (int i = 0; i < size; i++) {
+        cout << "   " << array[i] << endl;
+    }
+    free(array);
+    return 0;
 }

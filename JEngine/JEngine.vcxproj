@@ -129,6 +129,9 @@
   <ItemGroup>
     <ClCompile Include="JEngine.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="garbage.hpp" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
