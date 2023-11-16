@@ -307,10 +307,18 @@ void JSONObject::write(string diretory, bool indent) {
 
 int main()
 {
+    string test_string = "{\"Narrator Text\":\"Hello World\", \"Player Text\":\"Hello Narrator\"}";
+    JSONObject test(test_string);
+    test.print(true);
+
+
     //This is for testing
     JSONObject game;
     string directory;
-    string input; 
+    string input = "";
+    string player_text = "";
+    string narrator_text = "";
+    string file = "";
     bool opened = false;
 
     cout << "Would you like to build a new game, or add to one?" << endl;
@@ -328,12 +336,12 @@ int main()
     }
 
     input = "";
-    string player_text = "";
-    string narrator_text = "";
     while (input != "1") {
         narrator_text = "";
         if (input == "2") {
             game.print(true);
+            system("pause");
+            system("cls");
         }
         else if (input == "3") {
             player_text = "";
@@ -342,11 +350,27 @@ int main()
             cout << "Enter first narrator response" << endl;
             cin >> narrator_text;
             game.additem(player_text, narrator_text);
+            system("cls");
         }
         else if (input == "4") {
             cout << "Enter response" << endl;
             cin >> narrator_text;
             game.additem(player_text, narrator_text);
+            system("cls");
+        }
+        else if (input == "5") {
+            if (file.empty()) {
+                cout << "Enter file location/name" << endl;
+                cin >> file;
+            }
+            game.write(file, true);
+            system("cls");
+        }
+        else if (input == "6") {
+            cout << "Enter file location/name" << endl;
+            cin >> file;
+            game.write(file, true);
+            system("cls");
         }
 
         cout << "What would you like to do?" << endl;
@@ -355,8 +379,11 @@ int main()
         cout << "3 - Add player text" << endl;
         if (not player_text.empty()) {
             cout << "4 - Add another narrator response" << endl;
+            cout << "5 - Save" << endl;
+            cout << "6 - Save As" << endl;
         }
         cin >> input;
+        system("cls");
     }
     game.print(true);
     return 0;
