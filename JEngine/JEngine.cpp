@@ -63,7 +63,7 @@ public:
     string get(string);
     bool exists(string);
     void print(bool);
-    void open(string);
+    bool open(string);
     void write(bool);
     void write(string, bool);
     map<string, string>::iterator begin();
@@ -263,16 +263,19 @@ void JSONObject::print(bool indent) {
     cout << this->JSONString(indent) << endl;
 }
 
-void JSONObject::open(string directory) {
+bool JSONObject::open(string directory) {
+    bool succeed = true;
     string JSONstring;
     string line;
     ifstream readfile(directory);
+    succeed = readfile.is_open();
     while (getline(readfile, line)) {
         JSONstring.append(line);
     }
     readfile.close();
     this->parse(JSONstring);
     file = directory;
+    return succeed;
 }
 
 void JSONObject::write(bool indent) {
@@ -294,38 +297,54 @@ void JSONObject::write(string diretory, bool indent) {
 int main()
 {
     //This is for testing
+    JSONObject game;
     string directory;
-    JSONObject j1;
-    cout << "where to read: " << endl;
-    cin >> directory;
-    j1.open(directory);
-    j1.print(true);
-    j1.write(true);
-    cout << "where to write: " << endl;
-    cin >> directory;
-    j1.write(directory, true);
-    cin >> directory;
-    //JSONObject j2;
-    //string JSONString = "";
-    //string line;
-    //j1.additem("age", (string) "28");
-    //j1.additem("name", (string) "glenn");
-    //ofstream writefile(directory + "Jtest.txt");
-    //writefile << j1.JSONString(true);
-    //writefile.close();
-    //ifstream readfile(directory + "JTest.txt");
-    //while (getline(readfile, line)) {
-    //    cout << line << endl;
-    //    JSONString.append(line);
-    //}
-    //readfile.close();
-    //cout << JSONString << endl;
-    //j2.parse(JSONString);
-    //j2.print(true);
+    string input; 
+    bool opened = false;
 
+    cout << "Would you like to build a new game, or add to one?" << endl;
+    cout << "1. Build new game." << endl;
+    cout << "2. Add to game." << endl;
+    cin >> input;
 
+    if (input == "2") {
+        while (opened) {
+            cout << "File to open?" << endl;
+            cin >> input;
+            opened = game.open(input);
+        }
+    }
 
+    input = "";
+    int prompt_num = 1;
+    int response_num = 1;
+    while (input != "1") {
+        if (input == "2") {
+            response_num = 1;
+            cout << "Enter prompt" << endl;
+            cin >> input;
+            game.additem("Prompt_" + prompt_num, input);
+            cout << "Enter first response" << endl;
+            cin >> input;
+            game.additem(("Response_" + to_string(prompt_num) + "_" + to_string(response_num)), input);
+            prompt_num++;
+            response_num++;
+        }
+        else if (input == "3") {
+            cout << "Enter response" << endl;
+            cin >> input;
+            game.additem(("Response_" + to_string(prompt_num) + "_" + to_string(response_num)), input);
+            response_num++;
+        }
 
-
+        cout << "What would you like to do?" << endl;
+        cout << "1 - Exit" << endl;
+        cout << "2 - Add prompt" << endl;
+        if (response_num > 1) {
+            cout << "3 - Add another response" << endl;
+        }
+        cin >> input;
+    }
+    game.print(true);
     return 0;
 }
