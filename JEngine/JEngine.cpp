@@ -32,6 +32,7 @@ using std::getline;
 using std::cout;
 using std::cin;
 using std::endl;
+using std::isblank;
 
 class JSONObject {
 private:
@@ -39,6 +40,7 @@ private:
     map<string, string>::iterator it_internal;
     map<string, string>::iterator it_internal_next;
     string file;
+    bool _iswhitespace(char*);
 
 public:
     map<string, string>::iterator iterator;
@@ -88,7 +90,17 @@ JSONObject::JSONObject(string Input) {
 JSONObject::JSONObject(JSONObject &Obj) {
     this->parse(Obj.JSONString(false));
 }
-
+bool JSONObject::_iswhitespace(char* input) {
+    bool result = true;
+    int i = 0;
+    while ((i < strlen(input)) && result) {
+        if (not (isblank(input[i]))) {
+            result = false;
+        }
+        i++;
+    }
+    return result;
+}
 
 string JSONObject::JSONString(bool indent) {
     string JSONString = "";
@@ -196,9 +208,10 @@ void JSONObject::additem(string Item, char* Value) {
 }
 
 bool JSONObject::parse(string input) {
+    const string delim= ",{}:\"\n";
     bool sucess = true;
-    const string delim = "  ,{}:\"\n";
     char *token;
+    string stoken;
     char *next_token;
     string item = "";
     string value = "";
@@ -207,20 +220,18 @@ bool JSONObject::parse(string input) {
 
     Items.clear();
     token = strtok_s(buffer, delim.c_str(), &next_token);
-    if (token == NULL) {
-        sucess = false;
-    }
-
     while (token != NULL)
     {
-        if (item.empty()) {
-            item.assign(token);
-        }
-        else{
-            value.assign(token);
-            this->additem(item, value);
-            item = "";
-            value = "";
+        if (not (this->_iswhitespace(token))) {
+            if (item.empty()) {
+                item.assign(token);
+            }
+            else {
+                value.assign(token);
+                this->additem(item, value);
+                item = "";
+                value = "";
+            }
         }
         token = strtok_s(NULL, delim.c_str(), &next_token);
     }
@@ -304,44 +315,46 @@ int main()
 
     cout << "Would you like to build a new game, or add to one?" << endl;
     cout << "1. Build new game." << endl;
-    cout << "2. Add to game." << endl;
+    cout << "2. Update an existing game." << endl;
     cin >> input;
 
     if (input == "2") {
-        while (opened) {
-            cout << "File to open?" << endl;
-            cin >> input;
-            opened = game.open(input);
-        }
+        cout << "Update functionality not yet supported by JEngine." << endl;
+        //while (not opened) {
+        //    cout << "File to open?" << endl;
+        //    cin >> input;
+        //    opened = game.open(input);
+        //}
     }
 
     input = "";
-    int prompt_num = 1;
-    int response_num = 1;
+    string player_text = "";
+    string narrator_text = "";
     while (input != "1") {
+        narrator_text = "";
         if (input == "2") {
-            response_num = 1;
-            cout << "Enter prompt" << endl;
-            cin >> input;
-            game.additem("Prompt_" + prompt_num, input);
-            cout << "Enter first response" << endl;
-            cin >> input;
-            game.additem(("Response_" + to_string(prompt_num) + "_" + to_string(response_num)), input);
-            prompt_num++;
-            response_num++;
+            game.print(true);
         }
         else if (input == "3") {
+            player_text = "";
+            cout << "Enter player text" << endl;
+            cin >> player_text;
+            cout << "Enter first narrator response" << endl;
+            cin >> narrator_text;
+            game.additem(player_text, narrator_text);
+        }
+        else if (input == "4") {
             cout << "Enter response" << endl;
-            cin >> input;
-            game.additem(("Response_" + to_string(prompt_num) + "_" + to_string(response_num)), input);
-            response_num++;
+            cin >> narrator_text;
+            game.additem(player_text, narrator_text);
         }
 
         cout << "What would you like to do?" << endl;
         cout << "1 - Exit" << endl;
-        cout << "2 - Add prompt" << endl;
-        if (response_num > 1) {
-            cout << "3 - Add another response" << endl;
+        cout << "2 - Print current game" << endl;
+        cout << "3 - Add player text" << endl;
+        if (not player_text.empty()) {
+            cout << "4 - Add another narrator response" << endl;
         }
         cin >> input;
     }
