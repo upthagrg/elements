@@ -22,18 +22,23 @@
 #include <errno.h>
 #include "garbage.hpp"
 
-using std::cout;
-using std::cin;
-using std::endl;
 using std::string;
 using std::map;
 using std::to_string;
+using std::ifstream;
+using std::ofstream;
+using std::fstream;
+using std::getline;
+using std::cout;
+using std::cin;
+using std::endl;
 
 class JSONObject {
 private:
     map<string, string> Items;
     map<string, string>::iterator it_internal;
     map<string, string>::iterator it_internal_next;
+    string file;
 
 public:
     map<string, string>::iterator iterator;
@@ -58,6 +63,9 @@ public:
     string get(string);
     bool exists(string);
     void print(bool);
+    void open(string);
+    void write(bool);
+    void write(string, bool);
     map<string, string>::iterator begin();
     map<string, string>::iterator end();
 };
@@ -189,7 +197,7 @@ void JSONObject::additem(string Item, char* Value) {
 
 bool JSONObject::parse(string input) {
     bool sucess = true;
-    const string delim = "  {}:\"\n";
+    const string delim = "  ,{}:\"\n";
     char *token;
     char *next_token;
     string item = "";
@@ -255,69 +263,69 @@ void JSONObject::print(bool indent) {
     cout << this->JSONString(indent) << endl;
 }
 
+void JSONObject::open(string directory) {
+    string JSONstring;
+    string line;
+    ifstream readfile(directory);
+    while (getline(readfile, line)) {
+        JSONstring.append(line);
+    }
+    readfile.close();
+    this->parse(JSONstring);
+    file = directory;
+}
+
+void JSONObject::write(bool indent) {
+    ofstream writefile(file);
+    if (writefile.is_open()) {
+        writefile << this->JSONString(indent);
+        writefile.close();
+    }
+}
+
+void JSONObject::write(string diretory, bool indent) {
+    ofstream writefile(diretory);
+    if (writefile.is_open()) {
+        writefile << this->JSONString(indent);
+        writefile.close();
+    }
+}
+
 int main()
 {
-    // This is for testing
-    int size;
-    int* array;
-    string parse_test = "{\n    \"Name\":\"Glenn\"\n    \"Age\":\"28\"\n}";
-    string parse_test2 = "{\n    \"Make\":\"Ford\"\n    \"Model\":\"F150\"\n}";
-    string directory = "C:\JEngine";
-
-    JSONObject jo;
-    jo.additem("Name", "Glenn");
-    jo.additem("Age", "27");
-    jo.additem("Gender", "Male");
-
-
-    cout << "manually added items to jo: " << endl;
-    jo.print(true);
-
-    jo.parse(parse_test);
-
-    cout << "jo after parse " << endl;
-    jo.print(true);
-
-    JSONObject jo2(parse_test2);
-    cout << "jo2 built with constructor from string: " << endl;
-    jo2.print(true);
-
-    cout << "jo2 JSON string: " << endl;
-    cout << jo2.JSONString(false) << endl;
-
-    map<string, string>::iterator iterb = jo2.begin();
-    map<string, string>::iterator itere = jo2.end();
-
-    cout << "jo2 exists Make: " << jo2.exists("Make") << " jo2 find Make: " << jo2.get("Make") << endl;
-
-    cout << "Jo and jo2 before copy" << endl;
-    jo.print(true);
-    jo2.print(true);
-
-    cout << "Jo and jo2 after copy" << endl;
-    jo2 = jo;
-    jo.print(true);
-    jo2.print(true);
+    //This is for testing
+    string directory;
+    JSONObject j1;
+    cout << "where to read: " << endl;
+    cin >> directory;
+    j1.open(directory);
+    j1.print(true);
+    j1.write(true);
+    cout << "where to write: " << endl;
+    cin >> directory;
+    j1.write(directory, true);
+    cin >> directory;
+    //JSONObject j2;
+    //string JSONString = "";
+    //string line;
+    //j1.additem("age", (string) "28");
+    //j1.additem("name", (string) "glenn");
+    //ofstream writefile(directory + "Jtest.txt");
+    //writefile << j1.JSONString(true);
+    //writefile.close();
+    //ifstream readfile(directory + "JTest.txt");
+    //while (getline(readfile, line)) {
+    //    cout << line << endl;
+    //    JSONString.append(line);
+    //}
+    //readfile.close();
+    //cout << JSONString << endl;
+    //j2.parse(JSONString);
+    //j2.print(true);
 
 
 
 
 
-
-
-
-
-    cout << "Enter array size:" << endl;
-    cin >> size;
-    array = new int[size];
-    for (int i = 0; i < size; i++) {
-        cout << "enter a number " << endl;
-        cin >> array[i];
-    }
-    cout << "You enetered:" << endl;
-    for (int i = 0; i < size; i++) {
-        cout << "   " << array[i] << endl;
-    }
-    free(array);
     return 0;
 }
