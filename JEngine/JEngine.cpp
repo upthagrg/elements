@@ -18,12 +18,15 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <algorithm>
 #include <map>
+#include <vector>
 #include <errno.h>
 #include "garbage.hpp"
 
 using std::string;
 using std::map;
+using std::vector;
 using std::to_string;
 using std::ifstream;
 using std::ofstream;
@@ -33,12 +36,16 @@ using std::cout;
 using std::cin;
 using std::endl;
 using std::isblank;
+using std::transform;
 
 class JSONObject {
 private:
     map<string, string> Items;
+    map<string, vector<string>> Arrays;
     map<string, string>::iterator it_internal;
     map<string, string>::iterator it_internal_next;
+    map<string, vector<string>>::iterator it_arr_internal;
+    map<string, vector<string>>::iterator it_arr_internal_next;
     string file;
     bool _iswhitespace(char*);
 
@@ -61,9 +68,13 @@ public:
     void additem(string, long double);
     void additem(string, char);
     void additem(string, char*);
+    void addelement(string, string);
     bool parse(string);
     string get(string);
     bool exists(string);
+    vector<string> getelements(string);
+    void printelements(string, bool);
+    string elementsJSONstring(string, bool);
     void print(bool);
     bool open(string);
     void write(bool);
@@ -74,16 +85,27 @@ public:
 
 JSONObject::JSONObject() {
     Items.clear();
+    Arrays.clear();
     it_internal = Items.begin();
     it_internal_next = Items.begin();
+    it_arr_internal = Arrays.begin();
+    it_arr_internal_next = Arrays.begin();
+
 }
 
 JSONObject::JSONObject(string Input) {
+    Items.clear();
+    Arrays.clear();
     this->parse(Input);
     it_internal = Items.begin();
     it_internal_next = Items.begin();
     if (it_internal_next != Items.end()) {
         ++it_internal_next;
+    }
+    it_arr_internal = Arrays.begin();
+    it_arr_internal_next = Arrays.begin();
+    if (it_arr_internal_next != Arrays.end()) {
+        ++it_arr_internal_next;
     }
 }
 
@@ -104,9 +126,14 @@ bool JSONObject::_iswhitespace(char* input) {
 
 string JSONObject::JSONString(bool indent) {
     string JSONString = "";
+    //Item iterators
     this->it_internal = Items.begin();
     this->it_internal_next = Items.begin();
+    //Array iterators
+    this->it_arr_internal = Arrays.begin();
+    this->it_arr_internal_next = Arrays.begin();
 
+    //track one ahead in Items
     if (it_internal_next != Items.end()) {
         ++it_internal_next;
     }
@@ -127,22 +154,77 @@ string JSONObject::JSONString(bool indent) {
         JSONString.append(it_internal->second);
         JSONString.append("\"");
 
-        if (it_internal_next != Items.end()) {
+        if ((it_internal_next != Items.end()) || it_arr_internal != Arrays.end()) {
             JSONString.append(",");
         }
 
+        //increment Items iterator
         ++it_internal;
-
+        //if the Items next iterator is not at the end it too can increment forward
         if (it_internal_next != Items.end()) {
             ++it_internal_next;
         }
     }
 
+    //track one ahead in Items
+    if (it_arr_internal_next != Arrays.end()) {
+        ++it_arr_internal_next;
+    }
+    //append array JSON strings
+    while (it_arr_internal != Arrays.end()) {
+        JSONString.append(elementsJSONstring(it_arr_internal->first, indent));
+        //if there is a next array, append a comma after this one
+        if ((it_arr_internal_next != Arrays.end())) {
+            JSONString.append(",");
+        }
+
+        //increment Arrays iterator forward
+        ++it_arr_internal;
+        //if the Arrays next iterator is not at the end it too can increment forward
+        if (it_arr_internal_next != Arrays.end()) {
+            ++it_arr_internal_next;
+        }
+    }
+
+    //Back to outer JSON object
     if (indent) {
         JSONString.append("\n");
     }
 
     JSONString.append("}");
+    return JSONString;
+}
+
+string JSONObject::elementsJSONstring(string Item, bool indent) {
+    string JSONString = "";
+    if (indent) {
+        JSONString.append("\n   ");
+    }
+    JSONString.append("\"");
+    JSONString.append(Item);
+    JSONString.append("\"");
+    JSONString.append(":");
+    if (indent) {
+        JSONString.append("\n   ");
+    }
+    JSONString.append("[");
+    if (Arrays[Item].size() > 0) {
+        for (int i = 0; i < Arrays[Item].size(); i++) {
+            if (indent) {
+                JSONString.append("\n       ");
+            }
+            JSONString.append("\"");
+            JSONString.append(Arrays[Item][i]);
+            JSONString.append("\"");
+            if (i < (Arrays[Item].size()-1)) {
+                JSONString.append(",");
+            }
+        }
+    }
+    if (indent) {
+        JSONString.append("\n   ");
+    }
+    JSONString.append("]");
     return JSONString;
 }
 
@@ -207,15 +289,19 @@ void JSONObject::additem(string Item, char* Value) {
     Items[Item] = Value;
 }
 
+//Parse a JASON string into this JSON object
 bool JSONObject::parse(string input) {
     const string delim= ",{}:\"\n";
     bool sucess = true;
-    char *token;
-    string stoken;
-    char *next_token;
+    char* token;
+    char* next_token;
+    char* arr_token;
+    char* next_arr_token;
     string item = "";
     string value = "";
-    char *buffer = new char[input.length() + 1];
+    string element = "";
+    char* buffer = new char[input.length() + 1];
+    char* arr_buffer = new char[input.length() + 1];
     errno_t ret = strcpy_s(buffer, input.length() + 1, input.c_str());
 
     Items.clear();
@@ -223,9 +309,42 @@ bool JSONObject::parse(string input) {
     while (token != NULL)
     {
         if (not (this->_iswhitespace(token))) {
-            if (item.empty()) {
+            //This Value is an array
+            if (token[0] == '[') {
+                if (item.empty()) {
+                    //array found as an Item
+                    sucess = false;
+                    break;
+                }
+                //seek the closing ]
+                for (int i = 0; i < strlen(next_token); i++) {
+                    if (next_token[i] == ']') {
+                        string temp;
+                        temp.assign(next_token);
+                        //pull the whole array as a string
+                        temp = temp.substr(0, i);
+                        //move next_token to the address of the next character after the closing ]
+                        next_token = &next_token[i+1];
+                        //now you loop across the elements and call the addelement(item, <element>)
+                        ret = strcpy_s(arr_buffer, temp.length() + 1, temp.c_str());
+                        arr_token = strtok_s(arr_buffer, delim.c_str(), &next_arr_token);
+                        while (arr_token != NULL) {
+                            if (not (this->_iswhitespace(arr_token))) {
+                                element.assign(arr_token);
+                                this->addelement(item, element);
+                            }
+                            arr_token = strtok_s(NULL, delim.c_str(), &next_arr_token);
+                        }
+                        //clear item
+                        item = "";
+                    }
+                }
+            }
+            //This is an Item
+            else if (item.empty()) {
                 item.assign(token);
             }
+            //This is a simple Value
             else {
                 value.assign(token);
                 this->additem(item, value);
@@ -241,14 +360,6 @@ bool JSONObject::parse(string input) {
     }
 
     return sucess;
-}
-
-map<string, string>::iterator JSONObject::begin() {
-    return Items.begin();
-}
-
-map<string, string>::iterator JSONObject::end() {
-    return Items.end();
 }
 
 string JSONObject::get(string Item) {
@@ -268,6 +379,26 @@ bool JSONObject::exists(string Item) {
     else {
         return true;
     }
+}
+
+void JSONObject::addelement(string Item, string Element) {
+    Arrays[Item].push_back(Element);
+}
+
+vector<string> JSONObject::getelements(string Item) {
+    return Arrays[Item];
+}
+
+void JSONObject::printelements(string Item, bool indent) {
+    cout << this->elementsJSONstring(Item, indent) << endl;
+}
+
+map<string, string>::iterator JSONObject::begin() {
+    return Items.begin();
+}
+
+map<string, string>::iterator JSONObject::end() {
+    return Items.end();
 }
 
 void JSONObject::print(bool indent) {
@@ -305,13 +436,40 @@ void JSONObject::write(string diretory, bool indent) {
     }
 }
 
+
+void engine_test();
+bool str_equals(string, string);
+bool str_equals(char*, char*);
+bool str_equals(string, char*);
+bool str_equals(char*, string);
+
+
 int main()
 {
-    string test_string = "{\"Narrator Text\":\"Hello World\", \"Player Text\":\"Hello Narrator\"}";
+    //string test_string = "{\"Narrator Text\":\"Hello World\", \"Player Text\":\"Hello Narrator\"}";
+    string test_string = "{\"Player Text\":\"I like cake\",\"Narrator Text\":[\"Hello\", \"Hi\"]}";
+    //transform(test_string.begin(), test_string.end(), test_string.begin(), ::toupper);
+
     JSONObject test(test_string);
     test.print(true);
 
+    //test.addelement("Fruit", "apple");
+    //test.addelement("Fruit", "bannana");
+    //test.addelement("People", "Aijaeh");
+    //test.addelement("People", "Glenn");
 
+    //test.print(false);
+    //cout << endl;
+    //cout << endl;
+    //cout << endl;
+    //test.print(true);
+
+
+    //engine_test();
+    return 0;
+}
+
+void engine_test() {
     //This is for testing
     JSONObject game;
     string directory;
@@ -386,5 +544,27 @@ int main()
         system("cls");
     }
     game.print(true);
-    return 0;
+}
+
+bool str_equals(string str1, string str2) {
+    transform(str1.begin(), str1.end(), str1.begin(), ::toupper);
+    transform(str2.begin(), str2.end(), str2.begin(), ::toupper);
+    return str1 == str2;
+}
+
+bool str_equals(char* str1, char* str2) {
+    string s1, s2;
+    s1.assign(str1);
+    s2.assign(str2);
+    return str_equals(s1, s2);
+}
+bool str_equals(string str1, char* str2) {
+    string s2;
+    s2.assign(str2);
+    return str_equals(str1, s2);
+}
+bool str_equals(char* str1, string str2) {
+    string s1;
+    s1.assign(str1);
+    return str_equals(s1, str2);
 }
