@@ -36,25 +36,11 @@ bool str_equals(char*, string);
 int main()
 {
     //string test_string = "{\"Narrator Text\":\"Hello World\", \"Player Text\":\"Hello Narrator\"}";
-    string test_string = "{\"Player Text\":\"I like cake\",\"Narrator Text\":[\"Hello\", \"Hi\"]}";
+    //string test_string = "{\"Player Text\":\"I like cake\",\"Narrator Text\":[\"Hello\", \"Hi\"]}";
     //transform(test_string.begin(), test_string.end(), test_string.begin(), ::toupper);
 
-    JSONObject test(test_string);
-    test.print(true);
-
-    cout << "string" << endl;
-
-    //test.addelement("Fruit", "apple");
-    //test.addelement("Fruit", "bannana");
-    //test.addelement("People", "Aijaeh");
-    //test.addelement("People", "Glenn");
-
-    //test.print(false);
-    //cout << endl;
-    //cout << endl;
-    //cout << endl;
+    //JSONObject test(test_string);
     //test.print(true);
-
 
     //engine_test();
     return 0;

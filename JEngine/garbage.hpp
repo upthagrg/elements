@@ -28,8 +28,8 @@ using std::cout;
 using std::endl;
 using std::string;
 
+//cgarbage handler struct. Holds the memory array handle, the size and the capactiy.
 struct garbage_handler {
-	//struct list_head* head; // intend to convert to a linked list
 	void** handle;
 	int size;
     int cap;
@@ -41,16 +41,15 @@ int inited = 0;
 int initial = 8;
 bool debug = 0;
 
+//Internal use only: initialize cgrabage subsystem.
 void _init_gh() {
 	if (debug) {
 		cout << "in _init_gh" << endl;
-		//printf("in _init_gh\n");
 	}
 	if (inited != 0) {
 		return;
 	}
 	gh.handle = new void* [initial];
-	//gh.handle = malloc(sizeof(void*) * initial);
 	for (int i = 0; i < initial; i++) {
 		gh.handle[i] = NULL;
 	}
@@ -58,14 +57,14 @@ void _init_gh() {
 	gh.cap = initial;
 	inited = 1;
 }
+
+//Internal use only: double the size of the cgarbage memory array.
 void _grow_gh() {
 	void** temp;
 	if (debug) {
 		cout << "in _grow_gh" << endl;
-		//printf("in _grow_gh\n");
 	}
 	temp = new void* [gh.cap * 2];
-	//temp = malloc(sizeof(void*) * gh.cap * 2);
 	for (int i = 0; i < gh.size; i++) {
 		temp[i] = gh.handle[i];
 	}
@@ -73,19 +72,18 @@ void _grow_gh() {
 	gh.handle = temp;
 	gh.cap = gh.cap * 2;
 }
-//Internal shrink function for the garbage handler array. Makes it half as large
+
+//Internal use only: shrink function for the cgarbage memory array. Makes it half as large.
 void _shrink_gh() {
 	void** temp;
 	if (debug) {
 		cout << "in _shrink_gh" << endl;
-		//printf("in _shrink_gh\n");
 	}
 	if ((gh.cap / 2) < gh.size) {
 		cout << "Cannot shrink when current capacity / 2 woudl be smaller than current size" << endl;
 		exit(3);
 	}
 	temp = new void* [gh.cap / 2];
-	//temp = malloc(sizeof(void*) * ((gh.cap) / 2));
 	for (int i = 0; i < gh.size; i++) {
 		temp[i] = gh.handle[i];
 	}
@@ -93,34 +91,33 @@ void _shrink_gh() {
 	gh.handle = temp;
 	gh.cap = (gh.cap / 2);
 }
-//toggle debug on or off
+
+//toggle cgarbage debug flag on or off
 void toggle_debug() {
 	debug = !debug;
 }
+
 //Allows setting of the initial garbage handler array size
 void set_initial(int in) {
 	if (debug) {
 		cout << "in set_initial" << endl;
-		//printf("in set_initial\n");
 	}
 	if (in < 1) {
 		cout << "error: initial must be greater than 0" << endl;
-		//printf("Error: initial must be greater than 0\n");
 		exit(1);
 	}
 	if (inited) {
 		cout << "error: cannot set initial after initializing system" << endl;
-		//printf("error: cannot set initial after initializing system\n");
 		exit(2);
 	}
 	initial = in;
 }
-//C "malloc" equivalent
+
+//C "malloc" equivalent in cgarbage,
 void* gmalloc(int in) {
 	void* temp;
 	if (debug) {
 		cout << "in gmalloc" << endl;
-		//printf("in gmalloc\n");
 	}
 	if (inited == 0) {
 		_init_gh();
@@ -133,18 +130,17 @@ void* gmalloc(int in) {
 	}
 	return temp;
 }
-//C++ "new" equvilent, wrapper to gmalloc
+
+//C++ "new" equvilent in cgarbage, wrapper to gmalloc
 void* gnew(int in) {
 	return gmalloc(in);
 }
-//I intend to add a binary search tree here to increase the performance 
-//of the search. 
-//C "free" equivalent.
+
+//C "free" equivalent in cgarbage.
 void gfree(void* in) {
 	int i = gh.size;
 	if (debug) {
 		cout << "in gfree" << endl;
-		//printf("in gfree\n");
 	}
 	if (gh.size > 0) {
 		for (i; i >= 0; i--) {
@@ -161,26 +157,22 @@ void gfree(void* in) {
 		gh.size--;
 		if (debug) {
 			cout << "size: " << gh.size << " cap: " << gh.cap << endl;
-			//printf("size: %d cap: %d\n", gh.size, gh.cap);
 		}
 		if ((gh.size == (gh.cap / 4)) && (gh.cap > 8)) {
 			if (debug) {
 				cout << "calling _shrink_gh()" << endl;
-				//printf("calling _shrink_gh()\n");
 			}
 			_shrink_gh();
 		}
 	}
 }
-//C "clear" equivalent.
+
+//cgarbage clear the entire memory array.
 void gclear() {
 	if (debug) {
 		cout << "in gclear" << endl;
 		cout << "gh: " << &gh << endl;
 		cout << "inited: " << inited << endl;
-		//printf("in gclear\n");
-		//printf("gh: %d\n", &gh);
-		//printf("inited: %d\n", inited);
 	}
 	if (gh.size > 0) {
 		while (gh.size > 0) {
@@ -195,9 +187,6 @@ void gclear() {
 		cout << "size: " << gh.size << endl;
 		cout << "cap: " << gh.cap << endl;
 		cout << "inited: " << inited << endl;
-		//printf("size: %d\n", gh.size);
-		//printf("cap: %d\n", gh.cap);
-		//printf("inited: %d\n", inited);
 	}
 }
 #endif

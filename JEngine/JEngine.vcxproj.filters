@@ -26,5 +26,8 @@
     <ClInclude Include="JSON.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="MyLib.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
