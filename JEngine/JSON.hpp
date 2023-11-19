@@ -42,21 +42,21 @@ public:
     JSONObject(JSONObject& obj);
     string JSONString(bool);
     void additem(string, string);
-    void additem(string, bool);
-    void additem(string, int);
-    void additem(string, unsigned int);
-    void additem(string, long);
-    void additem(string, unsigned long);
-    void additem(string, long long);
-    void additem(string, unsigned long long);
-    void additem(string, double);
-    void additem(string, float);
-    void additem(string, long double);
-    void additem(string, char);
-    void additem(string, char*);
+    //void additem(string, bool);
+    //void additem(string, int);
+    //void additem(string, unsigned int);
+    //void additem(string, long);
+    //void additem(string, unsigned long);
+    //void additem(string, long long);
+    //void additem(string, unsigned long long);
+    //void additem(string, double);
+    //void additem(string, float);
+    //void additem(string, long double);
+    //void additem(string, char);
+    //void additem(string, char*);
     void addelement(string, string);
     bool parse(string);
-    string get(string);
+    string getItem(string);
     bool exists(string);
     vector<string> getElements(string);
     string getElement(string, int);
@@ -219,62 +219,62 @@ void JSONObject::additem(string Item, string Value) {
     Items[Item] = Value;
 }
 
-void JSONObject::additem(string Item, bool Value) {
-    if (Value) {
-        Items[Item] = "1";
-    }
-    else {
-        Items[Item] = "0";
-    }
-}
-
-void JSONObject::additem(string Item, int Value) {
-    Items[Item] = to_string(Value);
-}
-
-void JSONObject::additem(string Item, unsigned int Value) {
-    Items[Item] = to_string(Value);
-}
-
-void JSONObject::additem(string Item, long Value) {
-    Items[Item] = to_string(Value);
-}
-
-void JSONObject::additem(string Item, unsigned long Value) {
-    Items[Item] = to_string(Value);
-}
-
-void JSONObject::additem(string Item, long long Value) {
-    Items[Item] = to_string(Value);
-}
-
-void JSONObject::additem(string Item, unsigned long long Value) {
-    Items[Item] = to_string(Value);
-}
-
-void JSONObject::additem(string Item, double Value) {
-    Items[Item] = to_string(Value);
-}
-
-void JSONObject::additem(string Item, float Value) {
-    Items[Item] = to_string(Value);
-}
-
-void JSONObject::additem(string Item, long  double Value) {
-    Items[Item] = to_string(Value);
-}
-
-void JSONObject::additem(string Item, char Value) {
-    string tmp = "";
-    tmp += Value;
-    Items[Item] = Value;
-}
-
-void JSONObject::additem(string Item, char* Value) {
-    string tmp;
-    tmp.assign(Value);
-    Items[Item] = Value;
-}
+//void JSONObject::additem(string Item, bool Value) {
+//    if (Value) {
+//        Items[Item] = "1";
+//    }
+//    else {
+//        Items[Item] = "0";
+//    }
+//}
+//
+//void JSONObject::additem(string Item, int Value) {
+//    Items[Item] = to_string(Value);
+//}
+//
+//void JSONObject::additem(string Item, unsigned int Value) {
+//    Items[Item] = to_string(Value);
+//}
+//
+//void JSONObject::additem(string Item, long Value) {
+//    Items[Item] = to_string(Value);
+//}
+//
+//void JSONObject::additem(string Item, unsigned long Value) {
+//    Items[Item] = to_string(Value);
+//}
+//
+//void JSONObject::additem(string Item, long long Value) {
+//    Items[Item] = to_string(Value);
+//}
+//
+//void JSONObject::additem(string Item, unsigned long long Value) {
+//    Items[Item] = to_string(Value);
+//}
+//
+//void JSONObject::additem(string Item, double Value) {
+//    Items[Item] = to_string(Value);
+//}
+//
+//void JSONObject::additem(string Item, float Value) {
+//    Items[Item] = to_string(Value);
+//}
+//
+//void JSONObject::additem(string Item, long  double Value) {
+//    Items[Item] = to_string(Value);
+//}
+//
+//void JSONObject::additem(string Item, char Value) {
+//    string tmp = "";
+//    tmp += Value;
+//    Items[Item] = Value;
+//}
+//
+//void JSONObject::additem(string Item, char* Value) {
+//    string tmp;
+//    tmp.assign(Value);
+//    Items[Item] = Value;
+//}
 
 //Parse a JASON string into this JSON object
 bool JSONObject::parse(string input) {
@@ -349,7 +349,7 @@ bool JSONObject::parse(string input) {
     return sucess;
 }
 
-string JSONObject::get(string Item) {
+string JSONObject::getItem(string Item) {
     if (this->exists(Item)) {
         return Items[Item];
     }

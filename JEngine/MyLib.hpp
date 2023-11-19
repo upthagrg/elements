@@ -27,6 +27,8 @@ bool str_equals(string, string);
 bool str_equals(char*, char*);
 bool str_equals(string, char*);
 bool str_equals(char*, string);
+string to_upper(string);
+
 
 
 void engine_test() {
@@ -127,4 +129,10 @@ bool str_equals(char* str1, string str2) {
     string s1;
     s1.assign(str1);
     return str_equals(s1, str2);
+}
+
+string to_upper(string input) {
+    string str1 = input;
+    transform(str1.begin(), str1.end(), str1.begin(), ::toupper);
+    return str1;
 }
