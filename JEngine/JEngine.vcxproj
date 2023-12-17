@@ -130,9 +130,12 @@
     <ClCompile Include="JEngine.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="EZNetwork.hpp" />
     <ClInclude Include="garbage.hpp" />
+    <ClInclude Include="JEngine.hpp" />
     <ClInclude Include="JSON.hpp" />
     <ClInclude Include="MyLib.hpp" />
+    <ClInclude Include="WebDoc.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

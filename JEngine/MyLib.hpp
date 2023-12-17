@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <map>
 #include <vector>
+#include <windows.h>
 #include <errno.h>
 #include "JSON.hpp"
 
@@ -21,6 +22,7 @@ using std::cin;
 using std::endl;
 using std::isblank;
 using std::transform;
+using std::getline;
 
 void engine_test();
 bool str_equals(string, string);

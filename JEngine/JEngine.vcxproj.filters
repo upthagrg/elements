@@ -29,5 +29,14 @@
     <ClInclude Include="MyLib.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="EZNetwork.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="JEngine.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="WebDoc.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
