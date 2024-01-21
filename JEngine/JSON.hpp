@@ -1,4 +1,14 @@
 #pragma once
+
+/*
+File: JSON.hpp
+Author: Glenn Upthagrove
+Last Updated: 01/20/2024
+Description: This header file contains the C++ JSON library. 
+This will probably get absorbed into a more fundamental library of the Elements framework, probably Hydrogen.hpp.
+This library allows a C++ application to create, edit, store, and load JSON content. 
+*/
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -21,7 +31,6 @@ using std::cin;
 using std::endl;
 using std::isblank;
 using std::transform;
-using std::getline;
 
 class JSONObject {
 private:

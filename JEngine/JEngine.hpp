@@ -1,19 +1,18 @@
 #pragma once
-// JEngine.cpp : This file contains the 'main' function. Program execution begins and ends here.
-// This program will be command line based and allows the creation and play of text adventure games. 
-// The engine will heavily use JSON to store data.
-//
-
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
-
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
+/*
+File: JEngine.hpp
+Author: Glenn Upthagrove
+Last Updated: 01/20/2024
+Description: This header file contains the JEngine text adventure game engine.
+Everything you need is currently in the .hpp but this will be broken out into a .hpp, .cpp, and .o files later.
+JEngine will allow you to build a a text based adventure game through its text based interface, 
+or can be integrated into your own program for additional custom functionality. 
+It will be able store and load the game definition, and individual game saves.
+It will be able to build, edit, and play the games. 
+It will be able to be used as developer and as player without the acess of the developer. 
+This will be one of the first programs to use the Elements application framework.
+This will heavily utilize JSON to hold its games. 
+*/
 
 
 #include <iostream>
@@ -25,7 +24,7 @@
 #include <errno.h>
 #include "garbage.hpp"
 #include "JSON.hpp"
-#include "MyLib.hpp"
+#include "Hydrogen.hpp"
 
 //list of game state
 //ability to raise a state flag
@@ -139,7 +138,7 @@ string JEngine::get_directory() {
     return game_internals.getItem("DIRECTORY");
 }
 
-void test_engine() {
+void test_engine1() {
     //string test_string = "{\"Narrator Text\":\"Hello World\", \"Player Text\":\"Hello Narrator\"}";
     //string test_string = "{\"Player Text\":\"I like cake\",\"Narrator Text\":[\"Hello\", \"Hi\"]}";
     //transform(test_string.begin(), test_string.end(), test_string.begin(), ::toupper);
@@ -217,4 +216,85 @@ void test_engine() {
         cout << "2 - Test" << endl;
         cin >> input;
     }
+}
+
+
+
+
+
+void test_engine2() {
+    //This is for testing
+    JSONObject game;
+    string directory;
+    string input = "";
+    string player_text = "";
+    string narrator_text = "";
+    string file = "";
+    bool opened = false;
+
+    cout << "Would you like to build a new game, or add to one?" << endl;
+    cout << "1. Build new game." << endl;
+    cout << "2. Update an existing game." << endl;
+    cin >> input;
+
+    if (input == "2") {
+        cout << "Update functionality not yet supported by JEngine." << endl;
+        //while (not opened) {
+        //    cout << "File to open?" << endl;
+        //    cin >> input;
+        //    opened = game.open(input);
+        //}
+    }
+
+    input = "";
+    while (input != "1") {
+        narrator_text = "";
+        if (input == "2") {
+            game.print(true);
+            system("pause");
+            system("cls");
+        }
+        else if (input == "3") {
+            player_text = "";
+            cout << "Enter player text" << endl;
+            cin >> player_text;
+            cout << "Enter first narrator response" << endl;
+            cin >> narrator_text;
+            game.additem(player_text, narrator_text);
+            system("cls");
+        }
+        else if (input == "4") {
+            cout << "Enter response" << endl;
+            cin >> narrator_text;
+            game.additem(player_text, narrator_text);
+            system("cls");
+        }
+        else if (input == "5") {
+            if (file.empty()) {
+                cout << "Enter file location/name" << endl;
+                cin >> file;
+            }
+            game.write(file, true);
+            system("cls");
+        }
+        else if (input == "6") {
+            cout << "Enter file location/name" << endl;
+            cin >> file;
+            game.write(file, true);
+            system("cls");
+        }
+
+        cout << "What would you like to do?" << endl;
+        cout << "1 - Exit" << endl;
+        cout << "2 - Print current game" << endl;
+        cout << "3 - Add player text" << endl;
+        if (not player_text.empty()) {
+            cout << "4 - Add another narrator response" << endl;
+            cout << "5 - Save" << endl;
+            cout << "6 - Save As" << endl;
+        }
+        cin >> input;
+        system("cls");
+    }
+    game.print(true);
 }

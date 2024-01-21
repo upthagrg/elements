@@ -1,15 +1,16 @@
-/***************************************************************************
- * Author: Glenn Upthagrove
- * Date: 11/10/2023
- * Title: garbage.hpp
- * Description: A simple API that allows the user to push all memory
+/*
+File: garbage.hpp
+Author: Glenn Upthagrove
+Last Updated: 01/20/2024
+Description: A simple API that allows the user to push all memory
  * management down to this subsystem. To use, replace malloc(int) with
  * gmalloc(int), and call gclear() before any point at which the program
  * can terminate, such as a return in main or an exit(int) call. If the
  * user desires to manually free(void*), they should use gfree(void*).
  * This .hpp version is a C++ compatible version of garbage.h
  * The gnew function calls gmalloc and is equivalent. 
-***************************************************************************/
+*/
+
 #ifndef GARBAGE
 #define GARBAGE
 
@@ -148,6 +149,9 @@ void gfree(void* in) {
 				break;
 			}
 			continue;
+		}
+		if (i < 0) {
+			return;
 		}
 		free(gh.handle[i]);
 		if (i < gh.size) {

@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="JEngine.cpp">
+    <ClCompile Include="Elements.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -26,16 +26,19 @@
     <ClInclude Include="JSON.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="MyLib.hpp">
+    <ClInclude Include="Hydrogen.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="EZNetwork.hpp">
+    <ClInclude Include="Oxygen.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="JEngine.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="WebDoc.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Xeon.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

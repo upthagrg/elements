@@ -1,4 +1,13 @@
 #pragma once
+/*
+File: WebDoc.hpp
+Author: Glenn Upthagrove
+Last Updated: 01/20/2024
+Description: This header file contains the WebDOc engine. This will eventually get integrated into the Elements framework. 
+This will allow the creation of dynamic HTML content. The content is built and updated in memory, not held as a file on disk.
+THis can be used in conjuntion with the Xeon web or local harness to create a GUI for an Elements application, that can be deliverd via any web browser.
+*/
+
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -9,8 +18,8 @@
 #include <windows.h>
 #include "garbage.hpp"
 #include "JSON.hpp"
-#include "MyLib.hpp"
-#include "EZNetwork.hpp"
+#include "Hydrogen.hpp"
+#include "Oxygen.hpp"
 
 using std::string;
 using std::map;
@@ -128,7 +137,7 @@ namespace WebDoc {
         Home.Add_Content_Raw("Raw1", "<h1>Home Page</h1>");
         Home.Add_Button("MyButton", "button1 button1", "onClick=\"window.location.reload();\"", "Refresh");
         //action=\"\" 
-        string Form = "<form action=\"EZnet.echo()\" method=\"post\"><label for = \"fname\" > First name : </label><br><input type = \"text\" id = \"fname\" name = \"fname\" value = \"John\"><br><label for = \"lname\">Last name : </label><br><input type = \"text\" id = \"lname\" name = \"lname\" value = \"Doe\"><br><br><input type = \"submit\" value = \"Submit\"></form>";
+        string Form = "<form action=\"/Hello.html\" method=\"post\"><label for = \"fname\" > First name : </label><br><input type = \"text\" id = \"fname\" name = \"fname\" value = \"John\"><br><label for = \"lname\">Last name : </label><br><input type = \"text\" id = \"lname\" name = \"lname\" value = \"Doe\"><br><br><input type = \"submit\" value = \"Submit\"></form>";
         Home.Add_Content_Raw("NameForm", Form);
         return Home.Get_Page();
     }
