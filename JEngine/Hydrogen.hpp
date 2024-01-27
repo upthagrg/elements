@@ -19,6 +19,9 @@ This is the root of architecture and will contatin things like data structures, 
 #include <stdexcept>
 #include <windows.h>
 #include <errno.h>
+#include <ctime>
+#include <time.h>
+#include <thread>
 #include "JSON.hpp"
 
 using std::string;
@@ -35,6 +38,24 @@ using std::endl;
 using std::isblank;
 using std::transform;
 using std::getline;
+
+bool Architecture_Initialized = false;
+std::mutex ArchLock;
+
+namespace Hydrogen {
+    class HydrogenArchBase {
+    public:
+        HydrogenArchBase();
+    };
+    HydrogenArchBase::HydrogenArchBase() {
+        if (!Architecture_Initialized) {
+            ArchLock.lock();
+            std::srand(time(NULL));
+            Architecture_Initialized = true;
+            ArchLock.unlock();
+        }
+    }
+}
 
 void engine_test();
 bool str_equals(string, string);
@@ -200,7 +221,6 @@ QUEUE::QUEUE() {
 void QUEUE::Enqueue(void* in) {
     //Lock the queue
     this->Lock();
-    string input = *((string*)in);
     //New Node
     struct Node* ptr = new struct Node;
     //New Node's next is NUll
@@ -281,8 +301,7 @@ int QUEUE::GetSize() {
 #pragma endregion
 
 
-
-//Miscellanious helper functions{
+#pragma region Miscellanious helper functions
 //Get the IPv4 address of this machine
 string GetIP() {
     //TODO: Allow lookup for IPv6
@@ -295,7 +314,7 @@ string GetIP() {
     vector<string> Tokens = TokenizeString(IPConfig, "  \n", filter);
     for (int i = 0; i < Tokens.size(); i++) {
         if (Tokens[i].substr(0, 4) == "IPv4") {
-            if(i + 3 < Tokens.size()){
+            if (i + 3 < Tokens.size()) {
                 IP = Tokens[i + 3];
                 break;
             }
@@ -303,4 +322,19 @@ string GetIP() {
     }
     return IP;
 }
-//}
+
+//Get number of Bytes in a given number of KiloBytes
+int KB(int Number) {
+    return Number * 1024;
+}
+
+//Get number of Bytes in a given number of MegaBytes
+int MB(int Number) {
+    return KB(Number) * 1024;
+}
+
+//Get number of Bytes in a given number of GigaBytes
+int GB(int Number) {
+    return MB(Number) * 1024;
+}
+#pragma endregion

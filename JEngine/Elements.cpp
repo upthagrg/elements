@@ -15,6 +15,7 @@ Description: This file is the testing environment for the Elements application f
 #include <windows.h>
 #include <thread>
 #include <mutex>
+#include <windows.h>
 #include "garbage.hpp"
 #include "JSON.hpp"
 #include "Hydrogen.hpp"
@@ -23,12 +24,42 @@ Description: This file is the testing environment for the Elements application f
 #include "JEngine.hpp"
 #include "WebDoc.hpp"
 
+void runserver(Xeon::WebServer* server) {
+    server->Start();
+}
+
 void Test_Xeon() {
+    string input;
     int Backlog = 20;
-    int Buffer = 30720;
+    int Buffer = KB(32);
     //WebDoc::home()
-    Xeon::WebServer MyWebServer(Backlog, Buffer, true, false);
+    Xeon::WebServer MyWebServer(Backlog, Buffer, 2, false, false);
     //Xeon::LocalServer MyLocalServer(Backlog, Buffer, true, true);
+    std::thread server_thread(runserver, &MyWebServer);
+    Sleep(100);
+    while (MyWebServer.IsRunning()) {
+        cout << "What would you like to do?" << endl;
+        cout << "1 - Stop Server" << endl;
+        cout << "2 - Restart Server" << endl;
+        cin >> input;
+        if (input == "1") {
+            MyWebServer.Stop();
+            break;
+        }
+        else if (input == "2") {
+            MyWebServer.Stop();
+            MyWebServer.Start();
+            input = "";
+        }
+        system("cls");
+    }
+    while (MyWebServer.IsRunning()) {
+        Sleep(10);
+        continue;
+    }
+    if (server_thread.joinable()) {
+        server_thread.join();
+    }
 }
 
 void add_to_q(QUEUE* q) {

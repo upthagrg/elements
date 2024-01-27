@@ -14,10 +14,12 @@ This currently allows for the creation of an O2Socket object, which facilitiates
 #include <string>
 #include <algorithm>
 #include <map>
+#include <unordered_map>
 #include <vector>
 #include <signal.h>
 #include <errno.h>
 #include <winsock.h>
+#include <time.h>
 #include "Hydrogen.hpp"
 
 using std::string;
@@ -35,12 +37,22 @@ using std::isblank;
 using std::transform;
 
 namespace O2 {
+    typedef int O2SocketID;
 
-    class O2Socket {
+    struct Connected_Socket {
+        SOCKET Soc;
+        char* SocBuff;
+        time_t Created;
+        time_t LastAccessed;
+        int State;
+    };
+
+    class O2Socket : public Hydrogen::HydrogenArchBase {
     private:
         WSADATA WSA_data;
-        SOCKET Open_Socket;
-        SOCKET Usable_Socket;
+        SOCKET Socket;
+        //TODO: Implement timeout across socket map
+        std::unordered_map<O2SocketID, struct Connected_Socket> Connected_Sockets;
         char Socket_Error[64] = { 0 };
         int Socket_Error_Size = 64;
         int Socket_AF;
@@ -55,19 +67,22 @@ namespace O2 {
         int Buffer_Size;
         char* Buffer;
         bool Is_Valid;
+        O2SocketID Get_Next_ID();
 
     public:
         O2Socket();
         O2Socket(WORD, int, int, int, int);
         void PortBind(string, int);
         void PortListen(int);
-        char* Recieve(bool);
-        void SocketSend(string);
-        void CloseUsableSocket();
-        void CloseSocket();
+        O2SocketID AcceptNewConnection();
+        char* Recieve(O2SocketID);
+        void Send(O2SocketID, string);
+        void CloseConnectedSocket(O2SocketID);
+        void CloseConnectedSockets();
+        void Close();
     };
 
-    O2Socket::O2Socket() {
+    O2Socket::O2Socket() : HydrogenArchBase(){
         Socket_Addr_In_Size = -1;
         Allowed_Backlog = -1;
         Socket_Bound = false;
@@ -79,7 +94,7 @@ namespace O2 {
         Is_Valid = false;
     }
 
-    O2Socket::O2Socket(WORD WSAVersion, int Address_Family, int Type, int Protocol, int Read_Buffer_Size) {
+    O2Socket::O2Socket(WORD WSAVersion, int Address_Family, int Type, int Protocol, int Read_Buffer_Size) : HydrogenArchBase() {
         Socket_Addr_In_Size = 0;
         Allowed_Backlog = 0;
         Socket_Bound = false;
@@ -89,9 +104,9 @@ namespace O2 {
         Buffer_Size = Read_Buffer_Size;
         Buffer = new char[Read_Buffer_Size];
         ErrorCheck0((WSAStartup(MAKEWORD(2, 2), &WSA_data)), 1, "Failed WSAStartup");
-        Open_Socket = socket(Address_Family, Type, Protocol);
-        if (Open_Socket == INVALID_SOCKET) {
-            cout << "Failed to create open socket" << endl;
+        Socket = socket(Address_Family, Type, Protocol);
+        if (Socket == INVALID_SOCKET) {
+            cout << "Failed to create Socket" << endl;
             exit(2);
         }
         Is_Valid = true;
@@ -109,7 +124,7 @@ namespace O2 {
         Socket_Addr_In.sin_port = htons(Port);
         Socket_Addr_In_Size = sizeof(Socket_Addr_In);
 
-        ErrorCheck0((bind(Open_Socket, (SOCKADDR*)&Socket_Addr_In, Socket_Addr_In_Size)), 3, "Failed to bind socket");
+        ErrorCheck0((bind(Socket, (SOCKADDR*)&Socket_Addr_In, Socket_Addr_In_Size)), 3, "Failed to bind socket");
         Socket_Bound = true;
     }
 
@@ -118,40 +133,73 @@ namespace O2 {
         if (!Socket_Bound) {
             ErrorAndDie(20, "Cannot listen to an unbound port");
         }
-        Allowed_Backlog - Backlog;
+        Allowed_Backlog = Backlog;
         int Server_Backlog = Backlog;
-        ErrorCheck0((listen(Open_Socket, Backlog)), 4, "Could not start listening to socket");
+        ErrorCheck0((listen(Socket, Backlog)), 4, "Could not start listening to socket");
+    }
+    //TODO: refactor so every connection holds a reading socket in Xeon_Base, you could extend this to an O2Socket_Set
+    //TODO: do not simply use accept, use select and slisten to do this in a non binding way. 
+    //Return message from a sepcified open connection
+    char* O2Socket::Recieve(O2SocketID ID) {
+        if (Connected_Sockets.find(ID) == Connected_Sockets.end()) {
+            string ErrorMessage = "No socket of ID: ";
+            ErrorMessage.append(to_string(ID));
+            ErrorMessage.append(" found in Connected_Sockets");
+            ErrorAndDie(11, ErrorMessage);
+        }
+
+        Connected_Sockets[ID].LastAccessed = time(NULL);
+
+        memset(Connected_Sockets[ID].SocBuff, '\0', Buffer_Size);
+        int BytesRead;
+        BytesRead = recv(Connected_Sockets[ID].Soc, Connected_Sockets[ID].SocBuff, Buffer_Size, 0);
+        if (BytesRead < 0) {
+            ErrorAndDie(6, "Failed to read from socket");
+        }
+        return Connected_Sockets[ID].SocBuff;
     }
 
-    char* O2Socket::Recieve(bool Close) {
+    //This can build a new Connected_Socket in the Connected_Sockets vector
+    //That new Connected_Socket has its own buffer
+    //This then returns the O2SocketID (int) back
+    O2SocketID O2Socket::AcceptNewConnection() {
         if (!Is_Valid) { ErrorAndDie(100, "Bad Socket"); }
         int BytesRead = 0;
         if (!Socket_Bound) {
             ErrorAndDie(21, "Cannot read from an unbound port");
         }
-        Usable_Socket = accept(Open_Socket, (SOCKADDR*)&Socket_Addr_In, &Socket_Addr_In_Size);
-        if (Usable_Socket == INVALID_SOCKET) {
+        SOCKET New_Socket = accept(Socket, (SOCKADDR*)&Socket_Addr_In, &Socket_Addr_In_Size);
+        if (New_Socket == INVALID_SOCKET) {
             cout << "Failed to create usable socket" << endl;
             exit(5);
         }
-        memset(Buffer, '\0', Buffer_Size);
-        BytesRead = recv(Usable_Socket, Buffer, Buffer_Size, 0);
-        if (BytesRead < 0) {
-            ErrorAndDie(6, "Failed to read from socket");
-        }
-        memset(Socket_Error, '\0', Socket_Error_Size);
-        if (Close && getsockopt(Usable_Socket, SOL_SOCKET, SO_ERROR, Socket_Error, &Socket_Error_Size)) {
-            ErrorCheck0((closesocket(Usable_Socket)), 23, "Failed to close usable socket");
-        }
-        return Buffer;
+        //Build the new Connected_Socket
+        struct Connected_Socket NewConnectedSocket;
+        char* SBuff = new char[Buffer_Size];
+        NewConnectedSocket.Created = time(NULL);
+        NewConnectedSocket.LastAccessed = NewConnectedSocket.Created;
+        NewConnectedSocket.Soc = New_Socket;
+        NewConnectedSocket.SocBuff = SBuff;
+        NewConnectedSocket.State = -1; //TODO: Implement socket states
+        O2SocketID NewID = Get_Next_ID();
+        //Add the new Connected_Socket to Connected_Sockets
+        Connected_Sockets[NewID] = NewConnectedSocket;
+        return NewID;
     }
 
-    void O2Socket::SocketSend(string Message) {
+    //Basic send on the usable socket
+    void O2Socket::Send(O2SocketID ID, string Message) {
         if (!Is_Valid) { ErrorAndDie(100, "Bad Socket"); }
+        if (Connected_Sockets.find(ID) == Connected_Sockets.end()) {
+            string ErrorMessage = "No socket of ID: ";
+            ErrorMessage.append(to_string(ID));
+            ErrorMessage.append(" found in Connected_Sockets");
+            ErrorAndDie(13, ErrorMessage);
+        }
         int BytesSent = 0;
         int TotalBytesSent = 0;
         while (TotalBytesSent < Message.size()) {
-            BytesSent = send(Usable_Socket, Message.c_str(), Message.size(), 0);
+            BytesSent = send(Connected_Sockets[ID].Soc, Message.c_str(), Message.size(), 0);
             if (BytesSent < 0) {
                 ErrorAndDie(7, "Failed to send");
             }
@@ -159,20 +207,54 @@ namespace O2 {
         }
     }
 
-    void O2Socket::CloseUsableSocket() {
+    void O2Socket::CloseConnectedSocket(O2SocketID ID) {
         if (!Is_Valid) { ErrorAndDie(100, "Bad Socket"); }
         memset(Socket_Error, '\0', Socket_Error_Size);
-        if (getsockopt(Usable_Socket, SOL_SOCKET, SO_ERROR, Socket_Error, &Socket_Error_Size)) {
-            ErrorCheck0((closesocket(Usable_Socket)), 23, "Failed to close usable socket");
+        //Find the socket in Usable_Sockets
+        if (Connected_Sockets.find(ID) == Connected_Sockets.end()) {
+            string ErrorMessage = "No socket of ID: ";
+            ErrorMessage.append(to_string(ID));
+            ErrorMessage.append(" found in Connected_Sockets");
+            ErrorAndDie(12, ErrorMessage);
         }
+        if (getsockopt(Connected_Sockets[ID].Soc, SOL_SOCKET, SO_ERROR, Socket_Error, &Socket_Error_Size)) {
+            ErrorCheck0((closesocket(Connected_Sockets[ID].Soc)), 23, "Failed to close usable socket");
+        }
+        Connected_Sockets.erase(ID);
     }
 
-    void O2Socket::CloseSocket() {
+    void O2Socket::CloseConnectedSockets() {
         if (!Is_Valid) { ErrorAndDie(100, "Bad Socket"); }
         memset(Socket_Error, '\0', Socket_Error_Size);
-        if (getsockopt(Open_Socket, SOL_SOCKET, SO_ERROR, Socket_Error, &Socket_Error_Size)) {
-            ErrorCheck0((closesocket(Open_Socket)), 23, "Failed to close open socket");
+        //Close all open sockets
+        for (int i = 0; i < Connected_Sockets.size(); i++) {
+            if (getsockopt(Connected_Sockets[i].Soc, SOL_SOCKET, SO_ERROR, Socket_Error, &Socket_Error_Size)) {
+                ErrorCheck0((closesocket(Connected_Sockets[i].Soc)), 23, "Failed to close usable socket");
+            }
+            if (Connected_Sockets[i].SocBuff != NULL) {
+                delete Connected_Sockets[i].SocBuff;
+            }
+        }
+        Connected_Sockets.clear();
+    }
+
+    void O2Socket::Close() {
+        if (Connected_Sockets.size() > 0) {
+            CloseConnectedSockets();
+        }
+        if (!Is_Valid) { ErrorAndDie(100, "Bad Socket"); }
+        memset(Socket_Error, '\0', Socket_Error_Size);
+        if (getsockopt(Socket, SOL_SOCKET, SO_ERROR, Socket_Error, &Socket_Error_Size)) {
+            ErrorCheck0((closesocket(Socket)), 23, "Failed to close open socket");
         }
         ErrorCheck0(WSACleanup(), 24, "WSA Cleanup failed");
+    }
+
+    O2SocketID O2Socket::Get_Next_ID() {
+        O2SocketID NewID;
+        do {
+            NewID = std::rand();
+        } while (Connected_Sockets.find(NewID) != Connected_Sockets.end());
+        return NewID;
     }
 }
