@@ -205,7 +205,7 @@ private:
     int size;
 public:
     QUEUE();
-    void Enqueue(void*);
+    void Enqueue(void*, bool);
     void* Dequeue();
     bool IsEmpty();
     void Lock();
@@ -218,9 +218,11 @@ QUEUE::QUEUE() {
     Last = NULL;
     size = 0;
 }
-void QUEUE::Enqueue(void* in) {
+void QUEUE::Enqueue(void* in, bool lock) {
     //Lock the queue
-    this->Lock();
+    if (lock) {
+        this->Lock();
+    }
     //New Node
     struct Node* ptr = new struct Node;
     //New Node's next is NUll
@@ -243,7 +245,9 @@ void QUEUE::Enqueue(void* in) {
     //increment size
     size++;
     //Unlock the queue
-    this->Unlock();
+    if (lock) {
+        this->Unlock();
+    }
 }
 
 void* QUEUE::Dequeue() {
@@ -264,9 +268,9 @@ void* QUEUE::Dequeue() {
         if (First == NULL) {
             Last = NULL;
         }
+        //decrement size;
+        size--;
     }
-    //decrement size;
-    size--;
     //Unlock the queue
     this->Unlock();
     //Return the requested data.

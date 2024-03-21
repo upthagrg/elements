@@ -30,10 +30,38 @@ void runserver(Xeon::WebServer* server) {
 
 void Test_Xeon() {
     string input;
-    int Backlog = 20;
-    int Buffer = KB(32);
+    int Backlog = 1;
+    int Buffer = MB(64);
+    int threads = 0;
+    bool fail;
+    char next;
     //WebDoc::home()
-    Xeon::WebServer MyWebServer(Backlog, Buffer, 2, false, false);
+
+    do {
+        fail = false;
+        cout << "How many worker threads would you like?" << endl;
+        cin.clear();
+        cin >> threads;
+
+        if (cin.eof() || cin.bad() || cin.fail()) {
+            cout << "Not a valid entry" << endl;
+            fail = true;
+            if (cin.fail()){
+                cin.clear();
+                next = cin.get();
+            }
+        }
+        if (!fail) {
+            if (threads < 0 || threads > 8) {
+                cout << "threads must be between 0 and 8" << endl;
+                fail = true;
+            }
+        }
+    } while (fail);
+
+
+    Xeon::WebServer MyWebServer(Backlog, Buffer, 0, false, false);
+
     //Xeon::LocalServer MyLocalServer(Backlog, Buffer, true, true);
     std::thread server_thread(runserver, &MyWebServer);
     Sleep(100);
@@ -68,7 +96,7 @@ void add_to_q(QUEUE* q) {
         ptr = new string;
         *ptr = "This is iteration : ";
         ptr->append(to_string(i));
-        q->Enqueue((void*)ptr);
+        q->Enqueue((void*)ptr, true);
     }
 }
 

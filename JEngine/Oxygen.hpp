@@ -49,8 +49,9 @@ namespace O2 {
 
     class O2Socket : public Hydrogen::HydrogenArchBase {
     private:
+        QUEUE Requests;
         WSADATA WSA_data;
-        SOCKET Socket;
+        SOCKET ListenerSocket;
         //TODO: Implement timeout across socket map
         std::unordered_map<O2SocketID, struct Connected_Socket> Connected_Sockets;
         char Socket_Error[64] = { 0 };
@@ -71,17 +72,20 @@ namespace O2 {
 
     public:
         O2Socket();
-        O2Socket(WORD, int, int, int, int);
+        O2Socket(WORD, int, int, int, int, bool);
+        ~O2Socket();
         void PortBind(string, int);
         void PortListen(int);
         O2SocketID AcceptNewConnection();
         char* Recieve(O2SocketID);
+        O2SocketID* GetNextRequest();
+        bool Select(int);
         void Send(O2SocketID, string);
         void CloseConnectedSocket(O2SocketID);
         void CloseConnectedSockets();
         void Close();
     };
-
+    //Default constructor of am O2Socket object. The object is unusable in this state
     O2Socket::O2Socket() : HydrogenArchBase(){
         Socket_Addr_In_Size = -1;
         Allowed_Backlog = -1;
@@ -93,8 +97,8 @@ namespace O2 {
         Buffer = NULL;
         Is_Valid = false;
     }
-
-    O2Socket::O2Socket(WORD WSAVersion, int Address_Family, int Type, int Protocol, int Read_Buffer_Size) : HydrogenArchBase() {
+    //Constructor of a usable O2Socket object
+    O2Socket::O2Socket(WORD WSAVersion, int Address_Family, int Type, int Protocol, int Read_Buffer_Size, bool Blocking) : HydrogenArchBase() {
         Socket_Addr_In_Size = 0;
         Allowed_Backlog = 0;
         Socket_Bound = false;
@@ -104,14 +108,32 @@ namespace O2 {
         Buffer_Size = Read_Buffer_Size;
         Buffer = new char[Read_Buffer_Size];
         ErrorCheck0((WSAStartup(MAKEWORD(2, 2), &WSA_data)), 1, "Failed WSAStartup");
-        Socket = socket(Address_Family, Type, Protocol);
-        if (Socket == INVALID_SOCKET) {
+        ListenerSocket = socket(Address_Family, Type, Protocol);
+        if (ListenerSocket == INVALID_SOCKET) {
             cout << "Failed to create Socket" << endl;
             exit(2);
         }
+        //Set Listener socket to reusable
+        int on = 1;
+        int rc = setsockopt(ListenerSocket, SOL_SOCKET, SO_REUSEADDR, (char*)&on, sizeof(on));
+        //Make Socket non-blocking
+        if (!Blocking) {
+            unsigned long ul = 1;
+            int nRet;
+            nRet = ioctlsocket(ListenerSocket, FIONBIO, (unsigned long*)&ul);
+            if (nRet == SOCKET_ERROR) {
+                ErrorAndDie(406, "Failed to put Socket in non-blocking mode");
+            }
+        }
         Is_Valid = true;
     }
-
+    //O2Socket Destructor
+    O2Socket::~O2Socket() {
+        if (Connected_Sockets.size() > 0) {
+            Connected_Sockets.clear();
+        }
+    }
+    //Bind the object's internal Socket to the port
     void O2Socket::PortBind(string IPAddress, int Port) {
         if (!Is_Valid) { ErrorAndDie(100, "Bad Socket"); }
         Socket_IPAddr = "127.0.0.1";//loopback IP
@@ -124,10 +146,10 @@ namespace O2 {
         Socket_Addr_In.sin_port = htons(Port);
         Socket_Addr_In_Size = sizeof(Socket_Addr_In);
 
-        ErrorCheck0((bind(Socket, (SOCKADDR*)&Socket_Addr_In, Socket_Addr_In_Size)), 3, "Failed to bind socket");
+        ErrorCheck0((bind(ListenerSocket, (SOCKADDR*)&Socket_Addr_In, Socket_Addr_In_Size)), 3, "Failed to bind socket");
         Socket_Bound = true;
     }
-
+    //Begin listening on the object's internal Socket
     void O2Socket::PortListen(int Backlog) {
         if (!Is_Valid) { ErrorAndDie(100, "Bad Socket"); }
         if (!Socket_Bound) {
@@ -135,7 +157,7 @@ namespace O2 {
         }
         Allowed_Backlog = Backlog;
         int Server_Backlog = Backlog;
-        ErrorCheck0((listen(Socket, Backlog)), 4, "Could not start listening to socket");
+        ErrorCheck0((listen(ListenerSocket, Backlog)), 4, "Could not start listening to socket");
     }
     //TODO: refactor so every connection holds a reading socket in Xeon_Base, you could extend this to an O2Socket_Set
     //TODO: do not simply use accept, use select and slisten to do this in a non binding way. 
@@ -147,31 +169,105 @@ namespace O2 {
             ErrorMessage.append(" found in Connected_Sockets");
             ErrorAndDie(11, ErrorMessage);
         }
-
+        char* Return = NULL;
         Connected_Sockets[ID].LastAccessed = time(NULL);
 
         memset(Connected_Sockets[ID].SocBuff, '\0', Buffer_Size);
         int BytesRead;
         BytesRead = recv(Connected_Sockets[ID].Soc, Connected_Sockets[ID].SocBuff, Buffer_Size, 0);
         if (BytesRead < 0) {
-            ErrorAndDie(6, "Failed to read from socket");
+            //Connection no longer valid
+            //this->CloseConnectedSocket(ID);
+            //ErrorAndDie(6, "Failed to read from socket");
+            Return = NULL;
         }
-        return Connected_Sockets[ID].SocBuff;
+        else {
+            Return = Connected_Sockets[ID].SocBuff;
+        }
+        return Return;
     }
 
-    //This can build a new Connected_Socket in the Connected_Sockets vector
+    O2SocketID* O2Socket::GetNextRequest() {
+        return (O2SocketID*)Requests.Dequeue();
+    }
+    //Select wrapper, returns false if timeout. Errors internally if there was an error from select. 
+    bool O2Socket::Select(int timeout) {
+        //Build timeout struct
+        struct timeval Timeout;
+        Timeout.tv_sec = timeout;
+        Timeout.tv_usec = 0;
+        //Initialize master fd set
+        struct fd_set master_set;
+        SOCKET MaxSocket
+        FD_ZERO(&master_set);
+        MaxSocket = ListenerSocket;
+        FD_SET(ListenerSocket, &master_set);
+        //Copy the master fd_set over to the working fd_set.
+        struct fd_set working_set;
+        while (true) {
+            memcpy(&working_set, &master_set, sizeof(master_set));
+            //Call select() and wait the  timeout interval for it to complete.
+            int ret = select(MaxSocket + 1, &working_set, NULL, NULL, &Timeout);
+            //Handle return
+            switch (ret) {
+            case -1:
+                //Error
+                ErrorAndDie(405, "Error on select");
+            case 0:
+                //Timeout
+                return false;
+            default:
+                //Sucess
+                //One or more descriptors are readable. Need to determine which ones they are.
+                int desc_ready = ret;
+                Requests.Lock();
+                for (int i = 0; i <= MaxSocket && desc_ready > 0; ++i)
+                {
+                    //Check to see if this descriptor is ready
+                    if (FD_ISSET(i, &working_set))
+                    {
+                        //Found a readable file, the number we need to find in total is now one less
+                        desc_ready -= 1;
+                        //Check to see if this is the listening socket
+                        if (i == ListenerSocket) {
+                            //New connection found
+                            O2SocketID* newid = new O2SocketID;
+                            *newid = this->AcceptNewConnection();
+                            //char* message = this->Recieve(*newid);
+                            if (*newid != -1) {
+                                Requests.Enqueue((void*)newid, false);
+                            }
+                        }
+                        else {
+                            //This is an open connection, we do not need to call accept
+                            if (Connected_Sockets.find(i) != Connected_Sockets.end()) {
+                                Connected_Sockets[i].LastAccessed = time(NULL);
+                                Requests.Enqueue((void*)&(Connected_Sockets[i].Soc), false);
+                            }
+                        }
+                    }
+                }
+                Requests.Unlock();
+                return true;
+            }
+        }
+    }
+
+    //This can build a new Connected_Socket in the Connected_Sockets map
     //That new Connected_Socket has its own buffer
     //This then returns the O2SocketID (int) back
+    //TODO: Implement non-blocking version with select
     O2SocketID O2Socket::AcceptNewConnection() {
         if (!Is_Valid) { ErrorAndDie(100, "Bad Socket"); }
         int BytesRead = 0;
         if (!Socket_Bound) {
             ErrorAndDie(21, "Cannot read from an unbound port");
         }
-        SOCKET New_Socket = accept(Socket, (SOCKADDR*)&Socket_Addr_In, &Socket_Addr_In_Size);
+        SOCKET New_Socket = accept(ListenerSocket, (SOCKADDR*)&Socket_Addr_In, &Socket_Addr_In_Size);
         if (New_Socket == INVALID_SOCKET) {
-            cout << "Failed to create usable socket" << endl;
-            exit(5);
+            return -1;
+        //    cout << "Failed to create usable socket" << endl;
+        //    exit(5);
         }
         //Build the new Connected_Socket
         struct Connected_Socket NewConnectedSocket;
@@ -181,13 +277,13 @@ namespace O2 {
         NewConnectedSocket.Soc = New_Socket;
         NewConnectedSocket.SocBuff = SBuff;
         NewConnectedSocket.State = -1; //TODO: Implement socket states
-        O2SocketID NewID = Get_Next_ID();
+        O2SocketID NewID = New_Socket;
         //Add the new Connected_Socket to Connected_Sockets
         Connected_Sockets[NewID] = NewConnectedSocket;
         return NewID;
     }
 
-    //Basic send on the usable socket
+    //Send message over an open connection.
     void O2Socket::Send(O2SocketID ID, string Message) {
         if (!Is_Valid) { ErrorAndDie(100, "Bad Socket"); }
         if (Connected_Sockets.find(ID) == Connected_Sockets.end()) {
@@ -207,6 +303,7 @@ namespace O2 {
         }
     }
 
+    //Close an open connection
     void O2Socket::CloseConnectedSocket(O2SocketID ID) {
         if (!Is_Valid) { ErrorAndDie(100, "Bad Socket"); }
         memset(Socket_Error, '\0', Socket_Error_Size);
@@ -218,18 +315,19 @@ namespace O2 {
             ErrorAndDie(12, ErrorMessage);
         }
         if (getsockopt(Connected_Sockets[ID].Soc, SOL_SOCKET, SO_ERROR, Socket_Error, &Socket_Error_Size)) {
-            ErrorCheck0((closesocket(Connected_Sockets[ID].Soc)), 23, "Failed to close usable socket");
+            ErrorCheck0((closesocket(Connected_Sockets[ID].Soc)), 24, "Failed to close an open connection");
         }
+        delete Connected_Sockets[ID].SocBuff;
         Connected_Sockets.erase(ID);
     }
-
+    //Close all open connections
     void O2Socket::CloseConnectedSockets() {
         if (!Is_Valid) { ErrorAndDie(100, "Bad Socket"); }
         memset(Socket_Error, '\0', Socket_Error_Size);
         //Close all open sockets
         for (int i = 0; i < Connected_Sockets.size(); i++) {
             if (getsockopt(Connected_Sockets[i].Soc, SOL_SOCKET, SO_ERROR, Socket_Error, &Socket_Error_Size)) {
-                ErrorCheck0((closesocket(Connected_Sockets[i].Soc)), 23, "Failed to close usable socket");
+                ErrorCheck0((closesocket(Connected_Sockets[i].Soc)), 23, "Failed to close an open connection");
             }
             if (Connected_Sockets[i].SocBuff != NULL) {
                 delete Connected_Sockets[i].SocBuff;
@@ -237,19 +335,19 @@ namespace O2 {
         }
         Connected_Sockets.clear();
     }
-
+    //Close the socket. Closes all open connections, then closes the listening socket, then calls WSACleanup. 
     void O2Socket::Close() {
-        if (Connected_Sockets.size() > 0) {
-            CloseConnectedSockets();
-        }
+        //if (Connected_Sockets.size() > 0) {
+        //    CloseConnectedSockets();
+        //}
         if (!Is_Valid) { ErrorAndDie(100, "Bad Socket"); }
         memset(Socket_Error, '\0', Socket_Error_Size);
-        if (getsockopt(Socket, SOL_SOCKET, SO_ERROR, Socket_Error, &Socket_Error_Size)) {
-            ErrorCheck0((closesocket(Socket)), 23, "Failed to close open socket");
+        if (getsockopt(ListenerSocket, SOL_SOCKET, SO_ERROR, Socket_Error, &Socket_Error_Size)) {
+            ErrorCheck0((closesocket(ListenerSocket)), 23, "Failed to close open socket");
         }
         ErrorCheck0(WSACleanup(), 24, "WSA Cleanup failed");
     }
-
+    //Get the next unused Socket ID
     O2SocketID O2Socket::Get_Next_ID() {
         O2SocketID NewID;
         do {

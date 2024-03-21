@@ -21,11 +21,12 @@ namespace Xeon {
 #pragma region Base
     static const string SERVER_VERSION = "Xeon/0.3.1 (Win64)";
     class Xeon_Base;
-    void Handle_Request(QUEUE*, Xeon_Base*);
+    void Handle_Request(Xeon_Base*);
     class Xeon_Base {
     public:
         explicit Xeon_Base();
         explicit Xeon_Base(string, string, int, int, int, int, bool);
+        ~Xeon_Base();
         virtual void Start();
         virtual void Stop();
         virtual bool IsRunning() { return Running; }
@@ -33,6 +34,8 @@ namespace Xeon {
         virtual string BuildResponse(string) { return ""; }
         virtual char* Recieve(O2::O2SocketID);
         virtual void SendResponse(O2::O2SocketID, string);
+        O2::O2SocketID* GetNextRequest();
+        void CloseConnectedSocket(O2::O2SocketID);
         void Lock();
         void Unlock();
         void DebugMessage(string);
@@ -50,10 +53,6 @@ namespace Xeon {
         int Buffer_Size;
         bool Debug;
         std::mutex ObjectLock;
-        QUEUE requests;
-        //Spawn a worker thread to process the requests
-        //TODO: Once you refactor connections to be handled by an array of sockets rather than strings only
-        //make an array of threads as a thread pool all waiting on the work queue
         int WorkerThreads;
         vector<std::thread> Workers;
     };
@@ -83,14 +82,19 @@ namespace Xeon {
         Allowed_Backlog = allowed_backlog;
         Buffer_Size = buffer_size;
         Debug = debug;
-        Server_Socket = new O2::O2Socket(MAKEWORD(2, 2), AF_INET, SOCK_STREAM, IPPROTO_TCP, Buffer_Size);
+        Server_Socket = new O2::O2Socket(MAKEWORD(2, 2), AF_INET, SOCK_STREAM, IPPROTO_TCP, Buffer_Size, (workerthreads <= 0));
         WorkerThreads = workerthreads;
+    }
+    //Xeon_Base destructor
+    Xeon_Base::~Xeon_Base() {
+        if (Workers.size() > 0) {
+            Workers.clear();
+        }
+        delete Server_Socket;
     }
 
     //(virtual) Default start function, developers can override this
     void Xeon_Base::Start() {
-        //TODO: Get curl to link 
-        //CURL* req = curl_easy_init();
         Lock();
         cout << "<--------------------------Xeon-------------------------->" << endl << endl;
         cout << "Binding Socket..." << endl;
@@ -99,9 +103,11 @@ namespace Xeon {
         cout << "Listening to Socket..." << endl;
         Server_Socket->PortListen(Allowed_Backlog);
 
-        cout << "Starting Worker(s)" << endl;
-        for (int i = 0; i < WorkerThreads; i++) {
-            Workers.push_back(std::thread(Handle_Request, &requests, this));
+        if (WorkerThreads > 0) {
+            cout << "Starting Worker(s)..." << endl;
+            for (int i = 0; i < WorkerThreads; i++) {
+                Workers.push_back(std::thread(Handle_Request, this));
+            }
         }
 
         cout << "Started on " << Addr << ":" << Port << endl;
@@ -119,22 +125,34 @@ namespace Xeon {
         //Begin loop listening for nrw connections
         O2::O2SocketID* NewConnection;
         while (Run) {
-            NewConnection = new O2::O2SocketID;
-            //Accept new connetion. This connection is added into the Server_Socket's map of connections
-            *NewConnection = Server_Socket->AcceptNewConnection();
             if (WorkerThreads > 0) {
                 //Add request to the queue
-                requests.Enqueue((void*)NewConnection);
+                Server_Socket->Select(30);
             }
             else {
-                //No worker threads, must porcess on listener thread
-                IncomingMessage.append(Recieve(*NewConnection));
-                SendResponse((*NewConnection), IncomingMessage);
-                IncomingMessage = "";
+                //No worker threads, must process on listener thread
+                //Get New connections
+                NewConnection = new O2::O2SocketID;
+                *NewConnection = Server_Socket->AcceptNewConnection();
+
+                if (*NewConnection != -1) {
+                    IncomingMessage.append(Recieve(*NewConnection));
+                    if (debug) {
+                        cout << "<--------Request-------->\n\n" << endl;
+                        cout << IncomingMessage << endl;
+                        cout << "<--------End-------->\n\n" << endl;
+                    }
+                    SendResponse((*NewConnection), IncomingMessage);
+                    IncomingMessage = "";
+                }
             }
         }
         Running = false;
         cout << "Xeon Stopped." << endl;
+    }
+    void Xeon_Base::CloseConnectedSocket(O2::O2SocketID ID) {
+        //Close the connection
+        Server_Socket->CloseConnectedSocket(ID);
     }
     //(virtual) Condensed response to a request with sanity check on specified connection. Developers can override this.
     void Xeon_Base::SendResponse(O2::O2SocketID ID, string Request) {
@@ -145,8 +163,6 @@ namespace Xeon {
             }
             //This server's O2Socket will send out the data from this server's respond function which is determined by the incoming request. 
             Server_Socket->Send(ID, BuildResponse(Request));
-            //Close the connection
-            Server_Socket->CloseConnectedSocket(ID);
         }
     }
     //(virtual) Stop the object. Developers can override this.
@@ -173,6 +189,9 @@ namespace Xeon {
         Server_Socket->Close();
         Unlock();
     }
+    O2::O2SocketID* Xeon_Base::GetNextRequest() {
+        return Server_Socket->GetNextRequest();
+    }
     //Retrieve string from the specified connetion
     char* Xeon_Base::Recieve(O2::O2SocketID ID) {
         return Server_Socket->Recieve(ID);
@@ -192,17 +211,32 @@ namespace Xeon {
         }
     }
     //non-member function for a worker thread to process member data
-    void Handle_Request(QUEUE* q, Xeon_Base* b) {
+    void Handle_Request(Xeon_Base* b) {
         O2::O2SocketID* ID;
         string IncomingMessage;
+        char* IncommingMessageCstr;
         while (b->IsStarted()) {
             //limit queue poll to 100 times a second
             Sleep(10);
-            ID = (O2::O2SocketID*)(q->Dequeue());
+            ID = b->GetNextRequest();
             if (ID != NULL) {
-                IncomingMessage.append(b->Recieve((*ID)));
-                b->SendResponse((*ID), IncomingMessage);
-                IncomingMessage = "";
+                IncommingMessageCstr = NULL;
+                IncommingMessageCstr = b->Recieve((*ID));
+                if (IncommingMessageCstr != NULL) {
+                    IncomingMessage.append(IncommingMessageCstr);
+                    if (debug) {
+                        cout << "<--------Request-------->" << endl;
+                        cout << IncomingMessage << endl;
+                        cout << "<--------End-------->" << endl;
+                    }
+                    b->SendResponse((*ID), IncomingMessage);
+                    IncomingMessage = "";
+                }
+                //else {
+                //    ErrorAndDie(408, "Open connection could not return data");
+                //}
+                //Close the connection
+                b->CloseConnectedSocket(*ID);
             }
         }
     }
@@ -220,19 +254,26 @@ namespace Xeon {
     Server_Base::Server_Base(string lanaddress, string addr, int port, int allowed_backlog, int buffer_size, int workerthreads, bool debug) : Xeon_Base(lanaddress, addr, port, allowed_backlog, buffer_size, workerthreads, debug) {}
 
     string Server_Base::BuildResponse(string Request) {
+        int DataTypeEnm = 0;
+        string compare = "";
         string Line;
         string File;
         string Path = "C:\\ServerFiles\\";
-        std::regex File_Extension_Regex("^[^\s]+\.(html|php|js)$");
+        std::regex File_Extension_Regex("^[^\s]+\.(html|jpg)$");
+        std::regex File_Extension_jpg_Regex("^[^\s]+\.(jpg)$");
         string Requested_File;
         vector<string> Filter;
         vector<string> Tokens = TokenizeString(Request, "\n", Filter);
         if (Tokens.size() > 0) {
             Tokens = TokenizeString(Tokens[0], " /", Filter);
             for (int i = 0; i < Tokens.size(); i++) {
-                if (std::regex_search(Tokens[i], File_Extension_Regex)) {
+                compare = Tokens[i];
+                if (std::regex_search(compare, File_Extension_Regex)) {
                     Requested_File.append(Path);
                     Requested_File.append(Tokens[i]);
+                }
+                if (std::regex_search(compare, File_Extension_jpg_Regex)) {
+                    DataTypeEnm = 1;
                 }
             }
         }
@@ -264,25 +305,59 @@ namespace Xeon {
         server_message.append("Server: ");
         server_message.append(SERVER_VERSION);
         server_message.append("\n");
-        server_message.append("Content-Type: text/html\nContent-Length: ");
-        ifstream ReadFile(Requested_File);
-        if (ReadFile.is_open()) {
-            while (getline(ReadFile, Line)) {
-                File.append(Line);
-                File.append("\n");
+        server_message.append("Content-Type: ");
+        if (DataTypeEnm == 0) { //HTML
+            server_message.append("text/html");
+            server_message.append("\nContent - Length: ");
+            ifstream ReadFile(Requested_File);
+            if (ReadFile.is_open()) {
+                while (getline(ReadFile, Line)) {
+                    //if (std::regex_search(Line, Img_Tag_Regex)) {
+                    //    //cout << "Image Requested!" << endl;
+                    //    //cout << Line << endl;
+                    //    //vector<string> LineTokens = TokenizeString(Line, "\n", Filter);
+                    //    //for (int li = 0; li < LineTokens.size(); li++) {
+                    //    //    cout << "Line Token: " << LineTokens[li] << endl;
+                    //    //}
+                    //}
+                    File.append(Line);
+                    File.append("\n");
+                }
+                ReadFile.close();
+                server_message.append(to_string(strlen(File.c_str()) + 1));
+                //server_message.append("\nConnection: Closed");
+                server_message.append("\nConnection: keep-alive");
+                server_message.append("\n\n");
+                server_message.append(File);
+                if (Debug) {
+                    cout << "<--------Sending-------->" << endl;
+                    cout << server_message << endl;
+                    cout << "<--------End-------->" << endl;
+                }
             }
-            ReadFile.close();
-            server_message.append(to_string(strlen(File.c_str()) + 1));
-            server_message.append("\nConnection: Closed");
-            server_message.append("\n\n");
-            server_message.append(File);
-            cout << "Sending:\n" << server_message << endl;
-            if (Debug) {
-                cout << "Sending:\n" << server_message << endl;
+            else {
+                ErrorAndDie(404, "File not found"); //TODO: respond to client with 404 not found.
             }
         }
-        else {
-            ErrorAndDie(404, "File not found"); //TODO: respond to client with 404 not found.
+        else if (DataTypeEnm == 1) { //jpeg
+            server_message.append("image/jpeg");
+            server_message.append("\nContent - Length: ");
+            FILE* fp;
+            fp = fopen(Requested_File.c_str(), "r");
+            char buf[32000];
+            if (fp == NULL) {
+                ErrorAndDie(404, "file not found");
+            }
+            int ret = fread(buf, 1, 32000, fp);
+            fclose(fp);
+            server_message.append(to_string(ret));
+            //server_message.append("\nConnection: Closed");
+            server_message.append("\nConnection: keep-alive");
+            server_message.append("\n\n");
+            server_message.append(buf);
+        }
+        else{
+            ErrorAndDie(104, "Unknown content type");
         }
         return server_message;
     }
