@@ -127,7 +127,7 @@ namespace Xeon {
         while (Run) {
             if (WorkerThreads > 0) {
                 //Add request to the queue
-                Server_Socket->Select(30);
+                Server_Socket->Select(30, &Run);
             }
             else {
                 //No worker threads, must process on listener thread
@@ -135,7 +135,7 @@ namespace Xeon {
                 NewConnection = new O2::O2SocketID;
                 *NewConnection = Server_Socket->AcceptNewConnection();
 
-                if (*NewConnection != -1) {
+                if (*NewConnection > 0) {
                     IncomingMessage.append(Recieve(*NewConnection));
                     if (debug) {
                         cout << "<--------Request-------->\n\n" << endl;

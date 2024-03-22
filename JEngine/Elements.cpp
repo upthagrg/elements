@@ -31,7 +31,7 @@ void runserver(Xeon::WebServer* server) {
 void Test_Xeon() {
     string input;
     int Backlog = 1;
-    int Buffer = MB(64);
+    int Buffer = KB(64);
     int threads = 0;
     bool fail;
     char next;

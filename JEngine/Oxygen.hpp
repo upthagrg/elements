@@ -68,6 +68,11 @@ namespace O2 {
         int Buffer_Size;
         char* Buffer;
         bool Is_Valid;
+        bool selectstop;
+        struct timeval Timeout;
+        struct fd_set master_set;
+        struct fd_set working_set;
+        SOCKET MaxSocket;
         O2SocketID Get_Next_ID();
 
     public:
@@ -79,7 +84,7 @@ namespace O2 {
         O2SocketID AcceptNewConnection();
         char* Recieve(O2SocketID);
         O2SocketID* GetNextRequest();
-        bool Select(int);
+        bool Select(int, bool*);
         void Send(O2SocketID, string);
         void CloseConnectedSocket(O2SocketID);
         void CloseConnectedSockets();
@@ -95,6 +100,8 @@ namespace O2 {
         Socket_Protocol = -1;
         Buffer_Size = -1;
         Buffer = NULL;
+        Timeout.tv_sec = 0;
+        Timeout.tv_usec = 0;
         Is_Valid = false;
     }
     //Constructor of a usable O2Socket object
@@ -125,6 +132,8 @@ namespace O2 {
                 ErrorAndDie(406, "Failed to put Socket in non-blocking mode");
             }
         }
+        Timeout.tv_sec = 0;
+        Timeout.tv_usec = 0;
         Is_Valid = true;
     }
     //O2Socket Destructor
@@ -191,20 +200,17 @@ namespace O2 {
         return (O2SocketID*)Requests.Dequeue();
     }
     //Select wrapper, returns false if timeout. Errors internally if there was an error from select. 
-    bool O2Socket::Select(int timeout) {
-        //Build timeout struct
-        struct timeval Timeout;
+    bool O2Socket::Select(int timeout, bool* extern_stop) {
+        //set timeout
         Timeout.tv_sec = timeout;
-        Timeout.tv_usec = 0;
-        //Initialize master fd set
-        struct fd_set master_set;
-        SOCKET MaxSocket
+        //flags
+        selectstop = false;
+        //Initialize
         FD_ZERO(&master_set);
         MaxSocket = ListenerSocket;
         FD_SET(ListenerSocket, &master_set);
-        //Copy the master fd_set over to the working fd_set.
-        struct fd_set working_set;
-        while (true) {
+        do{
+            //Copy the master fd_set over to the working fd_set.
             memcpy(&working_set, &master_set, sizeof(master_set));
             //Call select() and wait the  timeout interval for it to complete.
             int ret = select(MaxSocket + 1, &working_set, NULL, NULL, &Timeout);
@@ -220,6 +226,7 @@ namespace O2 {
                 //Sucess
                 //One or more descriptors are readable. Need to determine which ones they are.
                 int desc_ready = ret;
+                O2SocketID* newid = new O2SocketID;
                 Requests.Lock();
                 for (int i = 0; i <= MaxSocket && desc_ready > 0; ++i)
                 {
@@ -231,26 +238,47 @@ namespace O2 {
                         //Check to see if this is the listening socket
                         if (i == ListenerSocket) {
                             //New connection found
-                            O2SocketID* newid = new O2SocketID;
-                            *newid = this->AcceptNewConnection();
-                            //char* message = this->Recieve(*newid);
-                            if (*newid != -1) {
-                                Requests.Enqueue((void*)newid, false);
-                            }
+                            do {
+                                //Accept each incoming connection. If accept fails with EWOULDBLOCK, 
+                                //then we have accepted all of them. Any otherfailure on accept will cause us to end the server.
+                                *newid = this->AcceptNewConnection();
+                                if (*newid < 0) {
+                                    if (*newid != EWOULDBLOCK) {
+                                        selectstop = true;
+                                    }
+                                    break;
+                                }
+                                else {
+                                    //enqueue the newid
+                                    Requests.Enqueue((void*)newid, false);
+                                    //add to master read set
+                                    FD_SET(*newid, &master_set);
+                                    //update max id if larger than the current max id
+                                    if (*newid > MaxSocket) {
+                                        MaxSocket = *newid;
+                                    }
+                                }
+                            } while (*newid != -1); //loop back and accept another incoming connection
                         }
                         else {
-                            //This is an open connection, we do not need to call accept
+                            //This is an open connection,  so an existing connection is readable. We do not need to call accept.
+                            //enqueue existing descriptor again
                             if (Connected_Sockets.find(i) != Connected_Sockets.end()) {
                                 Connected_Sockets[i].LastAccessed = time(NULL);
                                 Requests.Enqueue((void*)&(Connected_Sockets[i].Soc), false);
                             }
+                            
                         }
                     }
                 }
                 Requests.Unlock();
                 return true;
             }
-        }
+            if (extern_stop != NULL && *extern_stop == true) {
+                selectstop = true;
+                break;
+            }
+        } while (selectstop == false); //TODO: move this back out to the xeon function
     }
 
     //This can build a new Connected_Socket in the Connected_Sockets map
@@ -264,10 +292,8 @@ namespace O2 {
             ErrorAndDie(21, "Cannot read from an unbound port");
         }
         SOCKET New_Socket = accept(ListenerSocket, (SOCKADDR*)&Socket_Addr_In, &Socket_Addr_In_Size);
-        if (New_Socket == INVALID_SOCKET) {
-            return -1;
-        //    cout << "Failed to create usable socket" << endl;
-        //    exit(5);
+        if (New_Socket < 0) {
+            return New_Socket;
         }
         //Build the new Connected_Socket
         struct Connected_Socket NewConnectedSocket;
