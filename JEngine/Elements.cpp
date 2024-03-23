@@ -35,27 +35,14 @@ void Test_Xeon() {
     int threads = 0;
     bool fail;
     char next;
-    //WebDoc::home()
+    //WebDoc::home();
 
     do { //TODO: Make hydrogen get<data type>input functions of this format
         fail = false;
-        cout << "How many worker threads would you like?" << endl;
-        cin.clear();
-        cin >> threads;
-
-        if (cin.eof() || cin.bad() || cin.fail()) {
-            cout << "Not a valid entry" << endl;
+        threads = GetIntInput("How many worker threads would you like?", true, false, true);
+        if (threads < 0 || threads > 8) {
+            cout << "threads must be between 0 and 8" << endl; //TOOD: make a hydrogen base CPU info object to get max threads
             fail = true;
-            if (cin.fail()){
-                cin.clear();
-                next = cin.get();
-            }
-        }
-        if (!fail) {
-            if (threads < 0 || threads > 8) {
-                cout << "threads must be between 0 and 8" << endl; //TOOD: make a hydrogen base CPU info object to get max threads
-                fail = true;
-            }
         }
     } while (fail);
 
@@ -88,6 +75,7 @@ void Test_Xeon() {
     if (server_thread.joinable()) {
         server_thread.join();
     }
+    exit(0);
 }
 
 int main(){

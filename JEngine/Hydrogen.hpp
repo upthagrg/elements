@@ -324,7 +324,7 @@ string GetIP() {
     }
     return IP;
 }
-
+#pragma region Data size functions
 //Get number of Bytes in a given number of KiloBytes
 int KB(int Number) {
     return Number * 1024;
@@ -339,4 +339,168 @@ int MB(int Number) {
 int GB(int Number) {
     return MB(Number) * 1024;
 }
+#pragma endregion
+#pragma region Input functions
+string GetStringInput(string message) {
+    bool fail;
+    string input = "";
+    char next;
+    do {
+        fail = false;
+        cout << message << endl;
+        cin.clear();
+        cin >> input;
+
+        if (cin.eof() || cin.bad() || cin.fail()) {
+            fail = true;
+            if (cin.fail()) {
+                cin.clear();
+                next = cin.get();
+            }
+        }
+        if (fail) {
+            cout << "Not a valid entry" << endl;
+        }
+    } while (fail);
+    return input;
+}
+
+bool GetBoolInput(string message) {
+    bool fail;
+    bool input = false;
+    char next;
+    do {
+        fail = false;
+        cout << message << endl;
+        cin.clear();
+        cin >> input;
+
+        if (cin.eof() || cin.bad() || cin.fail()) {
+            fail = true;
+            if (cin.fail()) {
+                cin.clear();
+                next = cin.get();
+            }
+        }
+        if (fail) {
+            cout << "Not a valid entry" << endl;
+        }
+    } while (fail);
+    return input;
+}
+
+int GetIntInput(string message, bool positive, bool negative, bool zero) {
+    bool fail;
+    int input = -1;
+    char next;
+    if (!positive && !negative && !zero) {
+        ErrorAndDie(1001, "No valid input option allowed");
+    }
+    do {
+        fail = false;
+        cout << message << endl;
+        cin.clear();
+        cin >> input;
+
+        if (cin.eof() || cin.bad() || cin.fail()) {
+            fail = true;
+            if (cin.fail()) {
+                cin.clear();
+                next = cin.get();
+            }
+        }
+        if (!fail) {
+            if (input == 0 && !zero) {
+                fail = true;
+            }
+            else if (input < 0 && !negative) {
+                fail = true;
+            }
+            else if (input > 0 && !positive) {
+                fail = true;
+            }
+        }
+        if (fail) {
+            cout << "Not a valid entry" << endl;
+        }
+    } while (fail);
+    return input;
+}
+
+float GetFloatInput(string message, bool positive, bool negative, bool zero) {
+    bool fail;
+    float input = -1.0;
+    char next;
+    if (!positive && !negative && !zero) {
+        ErrorAndDie(1001, "No valid input option allowed");
+    }
+    do {
+        fail = false;
+        cout << message << endl;
+        cin.clear();
+        cin >> input;
+
+        if (cin.eof() || cin.bad() || cin.fail()) {
+            fail = true;
+            if (cin.fail()) {
+                cin.clear();
+                next = cin.get();
+            }
+        }
+        if (!fail) {
+            if (input == 0.0 && !zero) {
+                fail = true;
+            }
+            else if (input < 0.0 && !negative) {
+                fail = true;
+            }
+            else if (input > 0.0 && !positive) {
+                fail = true;
+            }
+        }
+        if (fail) {
+            cout << "Not a valid entry" << endl;
+        }
+    } while (fail);
+    return input;
+}
+
+double GetDoubleInput(string message, bool positive, bool negative, bool zero) {
+    bool fail;
+    double input = -1.0;
+    char next;
+    if (!positive && !negative && !zero) {
+        ErrorAndDie(1001, "No valid input option allowed");
+    }
+    do {
+        fail = false;
+        cout << message << endl;
+        cin.clear();
+        cin >> input;
+
+        if (cin.eof() || cin.bad() || cin.fail()) {
+            fail = true;
+            if (cin.fail()) {
+                cin.clear();
+                next = cin.get();
+            }
+        }
+        if (!fail) {
+            if (input == 0.0 && !zero) {
+                fail = true;
+            }
+            else if (input < 0.0 && !negative) {
+                fail = true;
+            }
+            else if (input > 0.0 && !positive) {
+                fail = true;
+            }
+        }
+        if (fail) {
+            cout << "Not a valid entry" << endl;
+        }
+    } while (fail);
+    return input;
+}
+#pragma endregion
 #pragma endregion
