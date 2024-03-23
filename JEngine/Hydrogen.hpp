@@ -57,7 +57,6 @@ namespace Hydrogen {
     }
 }
 
-void engine_test();
 bool str_equals(string, string);
 bool str_equals(char*, char*);
 bool str_equals(string, char*);
@@ -223,7 +222,6 @@ void QUEUE::Enqueue(void* in, bool lock) {
     if (lock) {
         this->Lock();
     }
-    //New Node
     struct Node* ptr = new struct Node;
     //New Node's next is NUll
     ptr->Next = NULL;

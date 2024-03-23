@@ -25,7 +25,7 @@ namespace Xeon {
     class Xeon_Base {
     public:
         explicit Xeon_Base();
-        explicit Xeon_Base(string, string, int, int, int, int, bool);
+        explicit Xeon_Base(string, string, int, int, int, int);
         ~Xeon_Base();
         virtual void Start();
         virtual void Stop();
@@ -39,6 +39,9 @@ namespace Xeon {
         void Lock();
         void Unlock();
         void DebugMessage(string);
+        void ToggleDebug();
+        void SetPollTimeout(int);
+        void SetConnectionTimeout(int);
 
     protected:
         O2::O2Socket* Server_Socket;
@@ -55,6 +58,8 @@ namespace Xeon {
         std::mutex ObjectLock;
         int WorkerThreads;
         vector<std::thread> Workers;
+        int PollTimeout;
+        int ConnectionTimeout;
     };
     //Default constructor of Xeon_Base objects, this would be an unusable object in this state
     Xeon_Base::Xeon_Base() {
@@ -69,9 +74,10 @@ namespace Xeon {
         Debug = false;
         Server_Socket = new O2::O2Socket();
         WorkerThreads = 0;
+        PollTimeout = 1;
     }
     //Constructor of a usable Xeon_Base object
-    Xeon_Base::Xeon_Base(string lanaddress, string addr, int port, int allowed_backlog, int buffer_size, int workerthreads, bool debug) {
+    Xeon_Base::Xeon_Base(string lanaddress, string addr, int port, int allowed_backlog, int buffer_size, int workerthreads) {
         Run = true;
         Running = false;
         LAN_Address = lanaddress;
@@ -81,9 +87,10 @@ namespace Xeon {
         Port = port;
         Allowed_Backlog = allowed_backlog;
         Buffer_Size = buffer_size;
-        Debug = debug;
+        Debug = false;
         Server_Socket = new O2::O2Socket(MAKEWORD(2, 2), AF_INET, SOCK_STREAM, IPPROTO_TCP, Buffer_Size, (workerthreads <= 0));
         WorkerThreads = workerthreads;
+        PollTimeout = 10;
     }
     //Xeon_Base destructor
     Xeon_Base::~Xeon_Base() {
@@ -127,7 +134,8 @@ namespace Xeon {
         while (Run) {
             if (WorkerThreads > 0) {
                 //Add request to the queue
-                Server_Socket->Select(30, &Run);
+                Server_Socket->Select(PollTimeout, &Run);
+                //TODO: if no maintenance thread, run maintenance
             }
             else {
                 //No worker threads, must process on listener thread
@@ -210,9 +218,19 @@ namespace Xeon {
             cout << Message << endl;
         }
     }
+    //Turn on debug
+    void Xeon_Base::ToggleDebug() {
+        debug = !debug;
+    }
+    void Xeon_Base::SetPollTimeout(int seconds) {
+        PollTimeout = seconds;
+    }
+    void Xeon_Base::SetConnectionTimeout(int seconds) {
+        ConnectionTimeout = seconds;
+    }
     //non-member function for a worker thread to process member data
     void Handle_Request(Xeon_Base* b) {
-        O2::O2SocketID* ID;
+        O2::O2SocketID* ID = NULL;
         string IncomingMessage;
         char* IncommingMessageCstr;
         while (b->IsStarted()) {
@@ -232,11 +250,8 @@ namespace Xeon {
                     b->SendResponse((*ID), IncomingMessage);
                     IncomingMessage = "";
                 }
-                //else {
-                //    ErrorAndDie(408, "Open connection could not return data");
-                //}
-                //Close the connection
-                b->CloseConnectedSocket(*ID);
+                //Dequeued ID, delete the data holding ID on the heap
+                delete ID;
             }
         }
     }
@@ -246,12 +261,12 @@ namespace Xeon {
     class Server_Base : public Xeon_Base {
     public:
         Server_Base();
-        Server_Base(string, string, int, int, int, int, bool);
+        Server_Base(string, string, int, int, int, int);
         string BuildResponse(string);
     };
     Server_Base::Server_Base() : Xeon_Base() {}
 
-    Server_Base::Server_Base(string lanaddress, string addr, int port, int allowed_backlog, int buffer_size, int workerthreads, bool debug) : Xeon_Base(lanaddress, addr, port, allowed_backlog, buffer_size, workerthreads, debug) {}
+    Server_Base::Server_Base(string lanaddress, string addr, int port, int allowed_backlog, int buffer_size, int workerthreads) : Xeon_Base(lanaddress, addr, port, allowed_backlog, buffer_size, workerthreads) {}
 
     string Server_Base::BuildResponse(string Request) {
         int DataTypeEnm = 0;
@@ -341,20 +356,24 @@ namespace Xeon {
         }
         else if (DataTypeEnm == 1) { //jpeg
             server_message.append("image/jpeg");
-            server_message.append("\nContent - Length: ");
             FILE* fp;
             fp = fopen(Requested_File.c_str(), "r");
-            char buf[32000];
+            char* buf = new char[Buffer_Size];
+            memset(buf, '\0', Buffer_Size);
             if (fp == NULL) {
                 ErrorAndDie(404, "file not found");
             }
-            int ret = fread(buf, 1, 32000, fp);
+            int ret = fread(buf, 1, Buffer_Size, fp);
+
             fclose(fp);
+
+            server_message.append("\nContent - Length: ");
             server_message.append(to_string(ret));
             //server_message.append("\nConnection: Closed");
             server_message.append("\nConnection: keep-alive");
             server_message.append("\n\n");
             server_message.append(buf);
+            delete buf;
         }
         else{
             ErrorAndDie(104, "Unknown content type");
@@ -365,12 +384,12 @@ namespace Xeon {
     class LocalServer : public Server_Base {
     public:
         LocalServer();
-        LocalServer(int, int, int, bool, bool);
+        LocalServer(int, int, int, bool);
     };
 
-    LocalServer::LocalServer() : Server_Base("", "127.0.0.1", 8080, 20, KB(32), 0, false) {}
+    LocalServer::LocalServer() : Server_Base("", "127.0.0.1", 8080, 20, KB(32), 0) {}
 
-    LocalServer::LocalServer(int allowed_backlog, int buffer_size, int workerthreads, bool auto_start, bool debug) : Server_Base("", "127.0.0.1", 8080, allowed_backlog, buffer_size, workerthreads, debug) {
+    LocalServer::LocalServer(int allowed_backlog, int buffer_size, int workerthreads, bool auto_start) : Server_Base("", "127.0.0.1", 8080, allowed_backlog, buffer_size, workerthreads) {
         if (auto_start) {
             this->Start();
         }
@@ -382,9 +401,9 @@ namespace Xeon {
         WebServer(int, int, int, bool, bool);
     };
 
-    WebServer::WebServer() : Server_Base(GetIP(), "0.0.0.0", 80, 20, KB(32), 0, false) {}
+    WebServer::WebServer() : Server_Base(GetIP(), "0.0.0.0", 80, 20, KB(32), 0) {}
 
-    WebServer::WebServer(int allowed_backlog, int buffer_size, int workerthreads, bool auto_start, bool debug) : Server_Base(GetIP(), "0.0.0.0", 80, allowed_backlog, buffer_size, workerthreads, debug) {
+    WebServer::WebServer(int allowed_backlog, int buffer_size, int workerthreads, bool auto_start, bool debug) : Server_Base(GetIP(), "0.0.0.0", 80, allowed_backlog, buffer_size, workerthreads) {
         if (auto_start) {
             this->Start();
         }
@@ -405,7 +424,7 @@ namespace Xeon {
         Page = "";
     }
 
-    Harness_Base::Harness_Base(string page, string lanaddress, string addr, int port, int allowed_backlog, int buffer_size, int workerthreads, bool debug) : Xeon_Base(lanaddress, addr, port, allowed_backlog, buffer_size, workerthreads, debug) {
+    Harness_Base::Harness_Base(string page, string lanaddress, string addr, int port, int allowed_backlog, int buffer_size, int workerthreads, bool debug) : Xeon_Base(lanaddress, addr, port, allowed_backlog, buffer_size, workerthreads) {
         Page = page;
     }
 
