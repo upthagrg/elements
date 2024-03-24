@@ -198,7 +198,8 @@ struct Node {
 
 class QUEUE {
 private:
-    std::mutex QLock;
+    CRITICAL_SECTION QLock;
+    CONDITION_VARIABLE QConVar;
     struct Node* First;
     struct Node* Last;
     int size;
@@ -211,11 +212,17 @@ public:
     void Unlock();
     void print();
     int GetSize();
+    CONDITION_VARIABLE* GetCondition();
+    CRITICAL_SECTION* GetLock();
+    void Sleep();
+    void Wake(bool);
 };
 QUEUE::QUEUE() {
     First = NULL;
     Last = NULL;
     size = 0;
+    InitializeCriticalSection(&QLock);
+    InitializeConditionVariable(&QConVar);
 }
 void QUEUE::Enqueue(void* in, bool lock) {
     //Lock the queue
@@ -279,12 +286,31 @@ bool QUEUE::IsEmpty() {
     return First == NULL;
 }
 
+
+CONDITION_VARIABLE* QUEUE::GetCondition() {
+    return &QConVar;
+}
+
+CRITICAL_SECTION* QUEUE::GetLock() {
+    return &QLock;
+}
 void QUEUE::Lock() {
-    QLock.lock();
+    EnterCriticalSection(&QLock);
 }
 
 void QUEUE::Unlock() {
-    QLock.unlock();
+    LeaveCriticalSection(&QLock);
+}
+void QUEUE::Sleep() {
+    SleepConditionVariableCS(&QConVar, &QLock, INFINITE);
+}
+void QUEUE::Wake(bool all) {
+    if (all) {
+        WakeAllConditionVariable(&QConVar);
+    }
+    else {
+        WakeConditionVariable(&QConVar);
+    }
 }
 
 void QUEUE::print() {

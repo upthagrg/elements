@@ -15,7 +15,7 @@ One of these future abilities will be a dynamicly genreated HTML engine (maybe i
 #include <thread>
 #include "Hydrogen.hpp"
 #include "Oxygen.hpp"
-#include "curl/curl.h"
+//#include "curl/curl.h"
 
 namespace Xeon {
 #pragma region Base
@@ -42,6 +42,8 @@ namespace Xeon {
         void ToggleDebug();
         void SetPollTimeout(int);
         void SetConnectionTimeout(int);
+        CONDITION_VARIABLE* GetCondition();
+        CRITICAL_SECTION* GetLock();
 
     protected:
         O2::O2Socket* Server_Socket;
@@ -228,12 +230,22 @@ namespace Xeon {
     void Xeon_Base::SetConnectionTimeout(int seconds) {
         ConnectionTimeout = seconds;
     }
+    CONDITION_VARIABLE* Xeon_Base::GetCondition() {
+        return Server_Socket->GetCondition();
+    }
+    CRITICAL_SECTION* Xeon_Base::GetLock() {
+        return Server_Socket->GetLock();
+    }
+
     //non-member function for a worker thread to process member data
     void Handle_Request(Xeon_Base* b) {
         O2::O2SocketID* ID = NULL;
         string IncomingMessage;
         char* IncommingMessageCstr;
         while (b->IsStarted()) {
+            //Wait on requests queue condition variable
+            //b->GetLock()->lock();
+            //(b->GetCondition())->wait(*(b->GetLock()));
             //limit queue poll to 100 times a second
             Sleep(10);
             ID = b->GetNextRequest();
@@ -464,5 +476,59 @@ namespace Xeon {
         }
     }
 
+#pragma region Examples and tests
+    void runserver(Xeon::WebServer* server) {
+        server->Start();
+    }
+
+    void Test_Xeon() {
+        string input;
+        int Backlog = 1;
+        int Buffer = KB(32);
+        int threads = 0;
+        bool fail;
+        char next;
+        //WebDoc::home();
+        do {
+            fail = false;
+            threads = GetIntInput("How many worker threads would you like?", true, false, true);
+            if (threads < 0 || threads > 8) {
+                cout << "threads must be between 0 and 8" << endl; //TOOD: make a hydrogen base CPU info object to get max threads
+                fail = true;
+            }
+        } while (fail);
+
+
+        Xeon::WebServer MyWebServer(Backlog, Buffer, threads, false, false);
+
+        //Xeon::LocalServer MyLocalServer(Backlog, Buffer, true, true);
+        std::thread server_thread(runserver, &MyWebServer);
+        Sleep(100);
+        while (MyWebServer.IsRunning()) {
+            cout << "What would you like to do?" << endl;
+            cout << "1 - Stop Server" << endl;
+            cout << "2 - Restart Server" << endl;
+            cin >> input;
+            if (input == "1") {
+                MyWebServer.Stop();
+                break;
+            }
+            else if (input == "2") {
+                MyWebServer.Stop();
+                MyWebServer.Start();
+                input = "";
+            }
+            system("cls");
+        }
+        while (MyWebServer.IsRunning()) {
+            Sleep(10);
+            continue;
+        }
+        if (server_thread.joinable()) {
+            server_thread.join();
+        }
+        exit(0);
+    }
+#pragma endregion
 #pragma endregion
 }

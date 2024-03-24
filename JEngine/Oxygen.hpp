@@ -91,6 +91,8 @@ namespace O2 {
         void Close();
         void Lock();
         void Unlock();
+        CONDITION_VARIABLE* GetCondition();
+        CRITICAL_SECTION* GetLock();
     };
     //Default constructor of am O2Socket object. The object is unusable in this state
     O2Socket::O2Socket() : HydrogenArchBase(){
@@ -284,6 +286,7 @@ namespace O2 {
                     }
                 }
                 Requests.Unlock();
+                //Requests.Signal(false);
                 return true;
             }
             if (extern_stop != NULL && *extern_stop == true) {
@@ -413,5 +416,11 @@ namespace O2 {
     //Unlock for object operations
     void O2Socket::Unlock() {
         ObjectLock.unlock();
+    }
+    CONDITION_VARIABLE* O2Socket::GetCondition() {
+        return Requests.GetCondition();
+    }
+    CRITICAL_SECTION* O2Socket::GetLock() {
+        return Requests.GetLock();
     }
 }

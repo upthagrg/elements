@@ -24,62 +24,52 @@ Description: This file is the testing environment for the Elements application f
 #include "JEngine.hpp"
 #include "WebDoc.hpp"
 
-void runserver(Xeon::WebServer* server) {
-    server->Start();
+CONDITION_VARIABLE cv;
+CRITICAL_SECTION m;
+
+
+void testvar(int id) {
+    //fake consumer
+    while (true) {
+        cout << "consumer " << id << " grabbing lock" << endl;
+        EnterCriticalSection(&m);
+        cout << "consumer " << id << " got lock, working" << endl;
+        cout << "consumer " << id << " cant do work, sleeping on condition" << endl;
+        SleepConditionVariableCS(&cv, &m, INFINITE);
+        //(*cvar).wait(*ulm);
+        cout << "consumer " << id << " woke up, working" << endl;
+        Sleep(5000);
+        cout << "consumer " << id << " releasing lock" << endl;
+        LeaveCriticalSection(&m);
+        //(*ulm).unlock();
+    }
 }
 
-void Test_Xeon() {
-    string input;
-    int Backlog = 1;
-    int Buffer = KB(64);
-    int threads = 0;
-    bool fail;
-    char next;
-    //WebDoc::home();
+void testconditioncar() {
+    //fake producer
+    InitializeConditionVariable(&cv);
 
-    do { //TODO: Make hydrogen get<data type>input functions of this format
-        fail = false;
-        threads = GetIntInput("How many worker threads would you like?", true, false, true);
-        if (threads < 0 || threads > 8) {
-            cout << "threads must be between 0 and 8" << endl; //TOOD: make a hydrogen base CPU info object to get max threads
-            fail = true;
-        }
-    } while (fail);
+    InitializeCriticalSection(&m);
 
+    cout << "producer making consumers" << endl;
+    std::thread consumer_thread(testvar, 1);
+    std::thread consumer_thread2(testvar, 2);
 
-    Xeon::WebServer MyWebServer(Backlog, Buffer, threads, false, false);
-
-    //Xeon::LocalServer MyLocalServer(Backlog, Buffer, true, true);
-    std::thread server_thread(runserver, &MyWebServer);
-    Sleep(100);
-    while (MyWebServer.IsRunning()) {
-        cout << "What would you like to do?" << endl;
-        cout << "1 - Stop Server" << endl;
-        cout << "2 - Restart Server" << endl;
-        cin >> input;
-        if (input == "1") {
-            MyWebServer.Stop();
-            break;
-        }
-        else if (input == "2") {
-            MyWebServer.Stop();
-            MyWebServer.Start();
-            input = "";
-        }
-        system("cls");
+    while (true) {
+        cout << "producer grabbing lock" << endl;
+        EnterCriticalSection(&m);
+        cout << "producer got lock, making data" << endl;
+        Sleep(10100);
+        cout << "producer realeasing lock" << endl;
+        LeaveCriticalSection(&m);
+        cout << "producer waking other threads" << endl;
+        WakeConditionVariable(&cv);
     }
-    while (MyWebServer.IsRunning()) {
-        Sleep(10);
-        continue;
-    }
-    if (server_thread.joinable()) {
-        server_thread.join();
-    }
-    exit(0);
 }
 
 int main(){
-    Test_Xeon();
+    Xeon::Test_Xeon();
+    exit(0);
     return 0;
 }
 
