@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.7.34031.279
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "JEngine", "JEngine\JEngine.vcxproj", "{FEBE7F2C-E6B5-414E-9578-2775E7BB1CD4}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ElementsPlusPlusFramework", "JEngine\JEngine.vcxproj", "{FEBE7F2C-E6B5-414E-9578-2775E7BB1CD4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

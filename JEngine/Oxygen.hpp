@@ -2,8 +2,8 @@
 File: Oxygen.hpp
 Author: Glenn Upthagrove
 Last Updated: 01/21/2024
-Description: This header file contains the Oxygen networking library for the Elements application framework. 
-This currently allows for the creation of an O2Socket object, which facilitiates inter-process and networked communication. 
+Description: This header file contains the Oxygen networking library for the Elements application framework.
+This currently allows for the creation of an O2Socket object, which facilitiates inter-process and networked communication.
 */
 
 
@@ -95,7 +95,7 @@ namespace O2 {
         CRITICAL_SECTION* GetLock();
     };
     //Default constructor of am O2Socket object. The object is unusable in this state
-    O2Socket::O2Socket() : HydrogenArchBase(){
+    O2Socket::O2Socket() : HydrogenArchBase() {
         Socket_Addr_In_Size = -1;
         Allowed_Backlog = -1;
         Socket_Bound = false;
@@ -222,7 +222,7 @@ namespace O2 {
         FD_ZERO(&master_set);
         MaxSocket = ListenerSocket;
         FD_SET(ListenerSocket, &master_set);
-        do{
+        do {
             //Copy the master fd_set over to the working fd_set.
             memcpy(&working_set, &master_set, sizeof(master_set));
             //Call select() and wait the  timeout interval for it to complete.
@@ -281,7 +281,7 @@ namespace O2 {
                                 Connected_Sockets[i].LastAccessed = time(NULL);
                                 Requests.Enqueue((void*)&(Connected_Sockets[i].Soc), false);
                             }
-                            
+
                         }
                     }
                 }
@@ -293,7 +293,7 @@ namespace O2 {
                 selectstop = true;
                 break;
             }
-        } while (selectstop == false); 
+        } while (selectstop == false);
     }
 
     //This can build a new Connected_Socket in the Connected_Sockets map

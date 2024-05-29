@@ -3,7 +3,7 @@
 File: Hydrogen.hpp
 Author: Glenn Upthagrove
 Last Updated: 01/20/2024
-Description: This header file contains the most basic building blocks for the Elements framework. 
+Description: This header file contains the most basic building blocks for the Elements framework.
 This is the root of architecture and will contatin things like data structures, algorythms, helper functions, etc.
 */
 

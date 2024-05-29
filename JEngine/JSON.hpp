@@ -51,8 +51,8 @@ public:
     JSONObject(string);
     JSONObject(JSONObject& obj);
     string JSONString(bool);
-    void additem(string, string);
-    void addelement(string, string);
+    void addItem(string, string);
+    void addElement(string, string);
     bool parse(string);
     string getItem(string);
     bool exists(string);
@@ -213,7 +213,7 @@ string JSONObject::ElementsJSONstring(string Item, bool indent) {
     return JSONString;
 }
 
-void JSONObject::additem(string Item, string Value) {
+void JSONObject::addItem(string Item, string Value) {
     Items[Item] = Value;
 }
 
@@ -259,7 +259,7 @@ bool JSONObject::parse(string input) {
                         while (arr_token != NULL) {
                             if (not (this->_iswhitespace(arr_token))) {
                                 element.assign(arr_token);
-                                this->addelement(item, element);
+                                this->addElement(item, element);
                             }
                             arr_token = strtok_s(NULL, delim.c_str(), &next_arr_token);
                         }
@@ -275,7 +275,7 @@ bool JSONObject::parse(string input) {
             //This is a simple Value
             else {
                 value.assign(token);
-                this->additem(item, value);
+                this->addItem(item, value);
                 item = "";
                 value = "";
             }
@@ -309,7 +309,7 @@ bool JSONObject::exists(string Item) {
     }
 }
 
-void JSONObject::addelement(string Item, string Element) {
+void JSONObject::addElement(string Item, string Element) {
     Arrays[Item].push_back(Element);
 }
 

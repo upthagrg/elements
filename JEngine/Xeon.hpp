@@ -3,11 +3,11 @@
 File: Xeon.hpp
 Author: Glenn Upthagrove
 Last Updated: 01/21/2024
-Description: This header file contains the Xeon Web server and local harness of the Elements appication framework. 
+Description: This header file contains the Xeon Web server and local harness of the Elements appication framework.
 These are built off off the Oxygen networking library. And the Hydrogen archiecture library.
-This can act as a web server for a website, local testing of the website, or as a local GUI for an Elements application. 
-This will allow for much more control over what the web server can do allowing a developer to extend past the basics of a web server and inject their own alterations to returned content. 
-This will be extended in several ways to include many many more capabilitites and improvements. 
+This can act as a web server for a website, local testing of the website, or as a local GUI for an Elements application.
+This will allow for much more control over what the web server can do allowing a developer to extend past the basics of a web server and inject their own alterations to returned content.
+This will be extended in several ways to include many many more capabilitites and improvements.
 One of these future abilities will be a dynamicly genreated HTML engine (maybe it will be carbon, currently it is WebDoc.hpp) which will allow a web application that is not simply a delivery system of HTML or PHP.
 */
 
@@ -126,7 +126,7 @@ namespace Xeon {
         cout << "Launch: http://localhost:" << Port << "/" << endl;
 
         //String to hold the incoming client request data 
-        string IncomingMessage; 
+        string IncomingMessage;
         //Set running flag
         Running = true;
         //Unlock the object for updates
@@ -243,9 +243,6 @@ namespace Xeon {
         string IncomingMessage;
         char* IncommingMessageCstr;
         while (b->IsStarted()) {
-            //Wait on requests queue condition variable
-            //b->GetLock()->lock();
-            //(b->GetCondition())->wait(*(b->GetLock()));
             //limit queue poll to 100 times a second
             Sleep(10);
             ID = b->GetNextRequest();
@@ -387,7 +384,7 @@ namespace Xeon {
             server_message.append(buf);
             delete buf;
         }
-        else{
+        else {
             ErrorAndDie(104, "Unknown content type");
         }
         return server_message;
