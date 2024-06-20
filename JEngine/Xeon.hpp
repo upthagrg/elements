@@ -2,7 +2,7 @@
 /*
 File: Xeon.hpp
 Author: Glenn Upthagrove
-Last Updated: 01/21/2024
+Last Updated: 06/19/2024
 Description: This header file contains the Xeon Web server and local harness of the Elements appication framework.
 These are built off off the Oxygen networking library. And the Hydrogen archiecture library.
 This can act as a web server for a website, local testing of the website, or as a local GUI for an Elements application.
@@ -11,12 +11,24 @@ This will be extended in several ways to include many many more capabilitites an
 One of these future abilities will be a dynamicly genreated HTML engine (maybe it will be carbon, currently it is WebDoc.hpp) which will allow a web application that is not simply a delivery system of HTML or PHP.
 */
 
-#include <regex>
-#include <thread>
 #include "Oxygen.hpp"
 //#include "curl/curl.h"
 
 namespace Xeon {
+#pragma region Enum
+    enum DataTypes
+    {
+        HTML = 0,
+        JPEG = 1
+    };
+#pragma endregion 
+#pragma region XeonReponse
+    struct XeonReponse {
+        string headers;
+        int datalen;
+        char* data;
+    };
+#pragma endregion 
 #pragma region Base
     static const string SERVER_VERSION = "Xeon/0.3.1 (Win64)";
     class Xeon_Base;
@@ -30,7 +42,7 @@ namespace Xeon {
         virtual void Stop();
         virtual bool IsRunning() { return Running; }
         bool IsStarted() { return Run; }
-        virtual string BuildResponse(string) { return ""; }
+        virtual XeonReponse BuildResponse(string) { XeonReponse a;  return a; }
         virtual char* Recieve(O2::O2SocketID);
         virtual void SendResponse(O2::O2SocketID, string);
         O2::O2SocketID* GetNextRequest();
@@ -170,8 +182,10 @@ namespace Xeon {
                 cout << "Xeon Read: " << endl;
                 cout << Request << endl;
             }
-            //This server's O2Socket will send out the data from this server's respond function which is determined by the incoming request. 
-            Server_Socket->Send(ID, BuildResponse(Request));
+            //This server's O2Socket will send out the data from this server's respond function which is determined by the incoming request.
+
+            XeonReponse Response = BuildResponse(Request);
+            Server_Socket->Send(ID, Response.headers, Response.data, Response.datalen);
         }
     }
     //(virtual) Stop the object. Developers can override this.
@@ -270,14 +284,15 @@ namespace Xeon {
     public:
         Server_Base();
         Server_Base(string, string, int, int, int, int);
-        string BuildResponse(string);
+        XeonReponse BuildResponse(string);
     };
     Server_Base::Server_Base() : Xeon_Base() {}
 
     Server_Base::Server_Base(string lanaddress, string addr, int port, int allowed_backlog, int buffer_size, int workerthreads) : Xeon_Base(lanaddress, addr, port, allowed_backlog, buffer_size, workerthreads) {}
 
-    string Server_Base::BuildResponse(string Request) {
-        int DataTypeEnm = 0;
+    XeonReponse Server_Base::BuildResponse(string Request) {
+        XeonReponse Server_Response;
+        int DataTypeEnm = HTML;
         string compare = "";
         string Line;
         string File;
@@ -296,7 +311,7 @@ namespace Xeon {
                     Requested_File.append(Tokens[i]);
                 }
                 if (std::regex_search(compare, File_Extension_jpg_Regex)) {
-                    DataTypeEnm = 1;
+                    DataTypeEnm = JPEG;
                 }
             }
         }
@@ -308,8 +323,8 @@ namespace Xeon {
             cout << "File: " << Requested_File << endl;
         }
 
-        string server_message = "HTTP/1.1 200 OK\n";
-        server_message.append("Date: ");
+        string headers = "HTTP/1.1 200 OK\n";
+        headers.append("Date: ");
         string GMTTimeString = "";
         char* TimeString = new char[26];
         memset(TimeString, '\0', 26);
@@ -323,38 +338,34 @@ namespace Xeon {
                 break;
             }
         }
-        server_message.append(TimeString);
-        server_message.append("GMT\n");
-        server_message.append("Server: ");
-        server_message.append(SERVER_VERSION);
-        server_message.append("\n");
-        server_message.append("Content-Type: ");
-        if (DataTypeEnm == 0) { //HTML
-            server_message.append("text/html");
-            server_message.append("\nContent - Length: ");
+        headers.append(TimeString);
+        headers.append("GMT\n");
+        headers.append("Server: ");
+        headers.append(SERVER_VERSION);
+        headers.append("\n");
+        headers.append("Content-Type: ");
+        if (DataTypeEnm == HTML) {
+            headers.append("text/html");
+            headers.append("\nContent - Length: ");
             ifstream ReadFile(Requested_File);
             if (ReadFile.is_open()) {
                 while (getline(ReadFile, Line)) {
-                    //if (std::regex_search(Line, Img_Tag_Regex)) {
-                    //    //cout << "Image Requested!" << endl;
-                    //    //cout << Line << endl;
-                    //    //vector<string> LineTokens = TokenizeString(Line, "\n", Filter);
-                    //    //for (int li = 0; li < LineTokens.size(); li++) {
-                    //    //    cout << "Line Token: " << LineTokens[li] << endl;
-                    //    //}
-                    //}
                     File.append(Line);
                     File.append("\n");
                 }
                 ReadFile.close();
-                server_message.append(to_string(strlen(File.c_str()) + 1));
-                //server_message.append("\nConnection: Closed");
-                server_message.append("\nConnection: keep-alive");
-                server_message.append("\n\n");
-                server_message.append(File);
+                headers.append(to_string(strlen(File.c_str()) + 1));
+                headers.append("\nConnection: close");
+                headers.append("\n\n");
+                Server_Response.headers = headers;
+                Server_Response.data = new char[strlen(File.c_str()) + 1];
+                Server_Response.datalen = strlen(File.c_str()) + 1;
+
+                strcpy(Server_Response.data, File.c_str());
                 if (XDebug) {
                     cout << "<--------Sending-------->" << endl;
-                    cout << server_message << endl;
+                    cout << Server_Response.headers << endl;
+                    cout << Server_Response.data << endl;
                     cout << "<--------End-------->" << endl;
                 }
             }
@@ -362,31 +373,40 @@ namespace Xeon {
                 ErrorAndDie(404, "File not found"); //TODO: respond to client with 404 not found.
             }
         }
-        else if (DataTypeEnm == 1) { //jpeg
-            server_message.append("image/jpeg");
-            FILE* fp;
-            fp = fopen(Requested_File.c_str(), "r");
-            char* buf = new char[Buffer_Size];
-            memset(buf, '\0', Buffer_Size);
-            if (fp == NULL) {
+        else if (DataTypeEnm == JPEG) {
+            headers.append("image/jpeg");
+            FILE* Image;
+            int ImageSize = 0;
+            Image = fopen(Requested_File.c_str(), "rb");
+            if (!Image) {
                 ErrorAndDie(404, "file not found");
             }
-            int ret = fread(buf, 1, Buffer_Size, fp);
+            fseek(Image, 0, SEEK_END);
+            ImageSize = ftell(Image);
+            fseek(Image, 0, SEEK_SET);
 
-            fclose(fp);
+            headers.append("\nContent-Length: ");
+            headers.append(to_string(ImageSize));
+            headers.append("\nConnection: close");
+            headers.append("\n\n");
 
-            server_message.append("\nContent - Length: ");
-            server_message.append(to_string(ret));
-            //server_message.append("\nConnection: Closed");
-            server_message.append("\nConnection: keep-alive");
-            server_message.append("\n\n");
-            server_message.append(buf);
-            delete buf;
+            Server_Response.headers = headers;
+            Server_Response.data = new char[ImageSize];
+            Server_Response.datalen = ImageSize;
+            memset(Server_Response.data, '\0', ImageSize);
+
+            int BytesRead = 0;
+            do {
+                BytesRead = fread(Server_Response.data, 1, ImageSize, Image);
+            } while (BytesRead > 0);
+            fclose(Image);
         }
         else {
             ErrorAndDie(104, "Unknown content type");
         }
-        return server_message;
+        XeonReponse Server_Response2;
+        Server_Response2 = Server_Response;
+        return Server_Response;
     }
 
     class LocalServer : public Server_Base {
@@ -426,7 +446,7 @@ namespace Xeon {
     public:
         Harness_Base();
         Harness_Base(string, string, string, int, int, int, int, bool);
-        string BuildResponse(string);
+        XeonReponse BuildResponse(string);
     };
     Harness_Base::Harness_Base() : Xeon_Base() {
         Page = "";
@@ -436,14 +456,20 @@ namespace Xeon {
         Page = page;
     }
 
-    string Harness_Base::BuildResponse(string Request) {
+    XeonReponse Harness_Base::BuildResponse(string Request) {
+        XeonReponse Server_Response;
+        Server_Response.data = NULL;
+        Server_Response.datalen = 0;
         //TODO: build web doc engine and respond with its response to this request
-        string server_message = "HTTP/1.1 200 OK\nContent-Type: text/html\nContent-Length: ";
-        server_message.append(to_string(Page.size()));
-        server_message.append("\n\n");
-        server_message.append(Page);
+        string headers = "HTTP/1.1 200 OK\nContent-Type: text/html\nContent-Length: ";
+        headers.append(to_string(Page.size()));
+        headers.append("\n\n");
+        Server_Response.headers = headers;
+        Server_Response.data = new char[Page.size()];
+        Server_Response.datalen = Page.size();
+        strcpy(Server_Response.data, Page.c_str());
 
-        return server_message;
+        return Server_Response;
     }
 
     class LocalHarness : public Harness_Base {

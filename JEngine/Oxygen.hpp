@@ -86,7 +86,7 @@ namespace O2 {
         char* Recieve(O2SocketID);
         O2SocketID* GetNextRequest();
         bool Select(int, bool*);
-        void Send(O2SocketID, string);
+        void Send(O2SocketID, string, char*, int);
         void CloseConnectedSocket(O2SocketID);
         void CloseConnectedSockets();
         void Close();
@@ -325,7 +325,7 @@ namespace O2 {
     }
 
     //Send message over an open connection.
-    void O2Socket::Send(O2SocketID ID, string Message) {
+    void O2Socket::Send(O2SocketID ID, string Headers, char* Data, int DataLen) {
         if (!Is_Valid) { ErrorAndDie(100, "Bad Socket"); }
         if (Connected_Sockets.find(ID) == Connected_Sockets.end()) {
             string ErrorMessage = "No socket of ID: ";
@@ -335,8 +335,17 @@ namespace O2 {
         }
         int BytesSent = 0;
         int TotalBytesSent = 0;
-        while (TotalBytesSent < Message.size()) {
-            BytesSent = send(Connected_Sockets[ID].Soc, Message.c_str(), Message.size(), 0);
+        while (TotalBytesSent < Headers.size()) {
+            BytesSent = send(Connected_Sockets[ID].Soc, Headers.c_str(), Headers.size(), 0);
+            if (BytesSent < 0) {
+                ErrorAndDie(7, "Failed to send");
+            }
+            TotalBytesSent += BytesSent;
+        }
+        BytesSent = 0;
+        TotalBytesSent = 0;
+        while (TotalBytesSent < DataLen) {
+            BytesSent = send(Connected_Sockets[ID].Soc, Data, DataLen, 0);
             if (BytesSent < 0) {
                 ErrorAndDie(7, "Failed to send");
             }

@@ -25,6 +25,7 @@ This is the root of architecture and will contatin things like data structures, 
 #include <time.h>
 #include <thread>
 #include <mutex>
+#include <regex>
 //#include "JSON.hpp"
 
 using std::string;
