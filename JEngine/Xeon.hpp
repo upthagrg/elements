@@ -13,7 +13,6 @@ One of these future abilities will be a dynamicly genreated HTML engine (maybe i
 
 #include <regex>
 #include <thread>
-#include "Hydrogen.hpp"
 #include "Oxygen.hpp"
 //#include "curl/curl.h"
 
@@ -56,7 +55,7 @@ namespace Xeon {
         int Port;
         int Allowed_Backlog;
         int Buffer_Size;
-        bool Debug;
+        bool XDebug;
         std::mutex ObjectLock;
         int WorkerThreads;
         vector<std::thread> Workers;
@@ -73,7 +72,7 @@ namespace Xeon {
         Port = -1;
         Allowed_Backlog = -1;
         Buffer_Size = -1;
-        Debug = false;
+        XDebug = false;
         Server_Socket = new O2::O2Socket();
         WorkerThreads = 0;
         PollTimeout = 1;
@@ -89,7 +88,7 @@ namespace Xeon {
         Port = port;
         Allowed_Backlog = allowed_backlog;
         Buffer_Size = buffer_size;
-        Debug = false;
+        XDebug = false;
         Server_Socket = new O2::O2Socket(MAKEWORD(2, 2), AF_INET, SOCK_STREAM, IPPROTO_TCP, Buffer_Size, (workerthreads <= 0));
         WorkerThreads = workerthreads;
         PollTimeout = 10;
@@ -147,7 +146,7 @@ namespace Xeon {
 
                 if (*NewConnection > 0) {
                     IncomingMessage.append(Recieve(*NewConnection));
-                    if (debug) {
+                    if (XDebug) {
                         cout << "<--------Request-------->\n\n" << endl;
                         cout << IncomingMessage << endl;
                         cout << "<--------End-------->\n\n" << endl;
@@ -167,7 +166,7 @@ namespace Xeon {
     //(virtual) Condensed response to a request with sanity check on specified connection. Developers can override this.
     void Xeon_Base::SendResponse(O2::O2SocketID ID, string Request) {
         if (!Request.empty()) {
-            if (Debug) {
+            if (XDebug) {
                 cout << "Xeon Read: " << endl;
                 cout << Request << endl;
             }
@@ -216,13 +215,13 @@ namespace Xeon {
     }
     //print the input if the object is in debug mode
     void Xeon_Base::DebugMessage(string Message) {
-        if (Debug) {
+        if (XDebug){
             cout << Message << endl;
         }
     }
     //Turn on debug
     void Xeon_Base::ToggleDebug() {
-        debug = !debug;
+        XDebug = !XDebug;
     }
     void Xeon_Base::SetPollTimeout(int seconds) {
         PollTimeout = seconds;
@@ -251,11 +250,11 @@ namespace Xeon {
                 IncommingMessageCstr = b->Recieve((*ID));
                 if (IncommingMessageCstr != NULL) {
                     IncomingMessage.append(IncommingMessageCstr);
-                    if (debug) {
-                        cout << "<--------Request-------->" << endl;
-                        cout << IncomingMessage << endl;
-                        cout << "<--------End-------->" << endl;
-                    }
+                    //if (XDebug) {
+                    //    cout << "<--------Request-------->" << endl;
+                    //    cout << IncomingMessage << endl;
+                    //    cout << "<--------End-------->" << endl;
+                    //}
                     b->SendResponse((*ID), IncomingMessage);
                     IncomingMessage = "";
                 }
@@ -305,7 +304,7 @@ namespace Xeon {
             Requested_File.append(Path);
             Requested_File.append("index.html");
         }
-        if (Debug) {
+        if (XDebug) {
             cout << "File: " << Requested_File << endl;
         }
 
@@ -353,7 +352,7 @@ namespace Xeon {
                 server_message.append("\nConnection: keep-alive");
                 server_message.append("\n\n");
                 server_message.append(File);
-                if (Debug) {
+                if (XDebug) {
                     cout << "<--------Sending-------->" << endl;
                     cout << server_message << endl;
                     cout << "<--------End-------->" << endl;

@@ -151,7 +151,6 @@
   <ItemGroup>
     <ClInclude Include="Oxygen.hpp" />
     <ClInclude Include="garbage.hpp" />
-    <ClInclude Include="JEngine.hpp" />
     <ClInclude Include="JSON.hpp" />
     <ClInclude Include="Hydrogen.hpp" />
     <ClInclude Include="tests.hpp" />

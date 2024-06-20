@@ -9,6 +9,7 @@ This currently allows for the creation of an O2Socket object, which facilitiates
 
 #pragma once
 #pragma comment(lib, "ws2_32.lib")
+#include <WinSock2.h>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -18,8 +19,8 @@ This currently allows for the creation of an O2Socket object, which facilitiates
 #include <vector>
 #include <signal.h>
 #include <errno.h>
-#include <winsock.h>
 #include <time.h>
+#include <mutex>
 #include "Hydrogen.hpp"
 
 using std::string;
@@ -165,7 +166,7 @@ namespace O2 {
             Socket_IPAddr = IPAddress;
         }
         Socket_Addr_In.sin_family = Socket_AF;
-        Socket_Addr_In.sin_addr.s_addr = inet_addr(IPAddress.c_str());
+        InetPton(AF_INET, IPAddress.c_str(), &Socket_Addr_In.sin_addr.s_addr);
         Socket_Port = Port;
         Socket_Addr_In.sin_port = htons(Port);
         Socket_Addr_In_Size = sizeof(Socket_Addr_In);

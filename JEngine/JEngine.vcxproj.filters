@@ -32,9 +32,6 @@
     <ClInclude Include="Oxygen.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="JEngine.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="WebDoc.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>

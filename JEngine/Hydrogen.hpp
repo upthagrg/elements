@@ -7,6 +7,9 @@ Description: This header file contains the most basic building blocks for the El
 This is the root of architecture and will contatin things like data structures, algorythms, helper functions, etc.
 */
 
+#pragma comment(lib, "ws2_32.lib")
+#include <WinSock.h>
+#include <ws2tcpip.h>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -17,12 +20,12 @@ This is the root of architecture and will contatin things like data structures, 
 #include <memory>
 #include <cstdio>
 #include <stdexcept>
-#include <windows.h>
 #include <errno.h>
 #include <ctime>
 #include <time.h>
 #include <thread>
-#include "JSON.hpp"
+#include <mutex>
+//#include "JSON.hpp"
 
 using std::string;
 using std::map;
@@ -44,8 +47,12 @@ std::mutex ArchLock;
 
 namespace Hydrogen {
     class HydrogenArchBase {
+    private:
+        time_t timer_var;
     public:
         HydrogenArchBase();
+        void StartTimer();
+        double EndTimer();
     };
     HydrogenArchBase::HydrogenArchBase() {
         if (!Architecture_Initialized) {
@@ -55,7 +62,15 @@ namespace Hydrogen {
             ArchLock.unlock();
         }
     }
+    void HydrogenArchBase::StartTimer() {
+        timer_var = time(NULL);
+    }
+    double HydrogenArchBase::EndTimer() {
+        return timer_var - time(NULL);
+    }
 }
+
+Hydrogen::HydrogenArchBase mybase;
 
 bool str_equals(string, string);
 bool str_equals(char*, char*);
@@ -324,6 +339,137 @@ void QUEUE::print() {
     }
 }
 int QUEUE::GetSize() {
+    return size;
+}
+
+class STACK {
+private:
+    CRITICAL_SECTION QLock;
+    CONDITION_VARIABLE QConVar;
+    struct Node* First;
+    struct Node* Last;
+    int size;
+public:
+    STACK();
+    void Stack(void*, bool);
+    void* Pop();
+    bool IsEmpty();
+    void Lock();
+    void Unlock();
+    void print();
+    int GetSize();
+    CONDITION_VARIABLE* GetCondition();
+    CRITICAL_SECTION* GetLock();
+    void Sleep();
+    void Wake(bool);
+};
+STACK::STACK() {
+    First = NULL;
+    Last = NULL;
+    size = 0;
+    InitializeCriticalSection(&QLock);
+    InitializeConditionVariable(&QConVar);
+}
+void STACK::Stack(void* in, bool lock) {
+    //Lock the queue
+    if (lock) {
+        this->Lock();
+    }
+    struct Node* ptr = new struct Node;
+    //New Node's next is NUll
+    ptr->Next = NULL;
+    //New Node's previous is current last.
+    //If this is the first node, the last is NULL and this previous will now also point to NULL.
+    ptr->Prev = Last;
+    //Assign the input pointer to the new Node's Data.
+    ptr->Data = in;
+    //Current Last next has to point to the new Node.
+    //If it is the first Node we have no last node to update, but instead we need to declare this as the first
+    if (Last != NULL) {
+        Last->Next = ptr;
+    }
+    else {
+        First = ptr;
+    }
+    //Last will always be the new node
+    Last = ptr;
+    //increment size
+    size++;
+    //Unlock the queue
+    if (lock) {
+        this->Unlock();
+    }
+}
+
+void* STACK::Pop() {
+    //Lock the queue
+    this->Lock();
+    void* data = NULL;
+    //Can only get data if there are Nodes
+    if (Last != NULL) {
+        //Store the data off.
+        data = Last->Data;
+        //Track the First Node
+        struct Node* ptr = Last;
+        //Move First pointer to the next Node.
+        Last = Last->Prev;
+        //free the old first Node pointer
+        delete ptr;
+        //if first is now null, the queue is empty and las must also point to null since they pointed to the same Node before dequeue
+        if (Last == NULL) {
+            First = NULL;
+        }
+        //decrement size;
+        size--;
+    }
+    //Unlock the queue
+    this->Unlock();
+    //Return the requested data.
+    return data;
+}
+
+bool STACK::IsEmpty() {
+    return First == NULL;
+}
+
+
+CONDITION_VARIABLE* STACK::GetCondition() {
+    return &QConVar;
+}
+
+CRITICAL_SECTION* STACK::GetLock() {
+    return &QLock;
+}
+void STACK::Lock() {
+    EnterCriticalSection(&QLock);
+}
+
+void STACK::Unlock() {
+    LeaveCriticalSection(&QLock);
+}
+void STACK::Sleep() {
+    SleepConditionVariableCS(&QConVar, &QLock, INFINITE);
+}
+void STACK::Wake(bool all) {
+    if (all) {
+        WakeAllConditionVariable(&QConVar);
+    }
+    else {
+        WakeConditionVariable(&QConVar);
+    }
+}
+
+void STACK::print() {
+    struct Node* ptr = NULL;
+    if (First != NULL) {
+        ptr = First;
+        while (ptr != NULL) {
+            cout << *((string*)ptr->Data) << endl;
+            ptr = ptr->Next;
+        }
+    }
+}
+int STACK::GetSize() {
     return size;
 }
 #pragma endregion
