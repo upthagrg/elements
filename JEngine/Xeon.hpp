@@ -21,14 +21,7 @@ namespace Xeon {
         HTML = 0,
         JPEG = 1
     };
-#pragma endregion 
-#pragma region XeonReponse
-    struct XeonReponse {
-        string headers;
-        int datalen;
-        char* data;
-    };
-#pragma endregion 
+#pragma endregion
 #pragma region Base
     static const string SERVER_VERSION = "Xeon/0.3.1 (Win64)";
     class Xeon_Base;
@@ -42,7 +35,7 @@ namespace Xeon {
         virtual void Stop();
         virtual bool IsRunning() { return Running; }
         bool IsStarted() { return Run; }
-        virtual XeonReponse BuildResponse(string) { XeonReponse a;  return a; }
+        virtual O2::O2Data BuildResponse(string) { O2::O2Data a;  return a; }
         virtual char* Recieve(O2::O2SocketID);
         virtual void SendResponse(O2::O2SocketID, string);
         O2::O2SocketID* GetNextRequest();
@@ -184,8 +177,7 @@ namespace Xeon {
             }
             //This server's O2Socket will send out the data from this server's respond function which is determined by the incoming request.
 
-            XeonReponse Response = BuildResponse(Request);
-            Server_Socket->Send(ID, Response.headers, Response.data, Response.datalen);
+            Server_Socket->Send(ID, BuildResponse(Request));
         }
     }
     //(virtual) Stop the object. Developers can override this.
@@ -284,14 +276,16 @@ namespace Xeon {
     public:
         Server_Base();
         Server_Base(string, string, int, int, int, int);
-        XeonReponse BuildResponse(string);
+        O2::O2Data BuildResponse(string);
     };
     Server_Base::Server_Base() : Xeon_Base() {}
 
     Server_Base::Server_Base(string lanaddress, string addr, int port, int allowed_backlog, int buffer_size, int workerthreads) : Xeon_Base(lanaddress, addr, port, allowed_backlog, buffer_size, workerthreads) {}
 
-    XeonReponse Server_Base::BuildResponse(string Request) {
-        XeonReponse Server_Response;
+    O2::O2Data Server_Base::BuildResponse(string Request) {
+        O2::O2Data Server_Response;
+        Server_Response.data = NULL;
+        Server_Response.datalen = 0;
         int DataTypeEnm = HTML;
         string compare = "";
         string Line;
@@ -404,7 +398,7 @@ namespace Xeon {
         else {
             ErrorAndDie(104, "Unknown content type");
         }
-        XeonReponse Server_Response2;
+        O2::O2Data Server_Response2;
         Server_Response2 = Server_Response;
         return Server_Response;
     }
@@ -446,7 +440,7 @@ namespace Xeon {
     public:
         Harness_Base();
         Harness_Base(string, string, string, int, int, int, int, bool);
-        XeonReponse BuildResponse(string);
+        O2::O2Data BuildResponse(string);
     };
     Harness_Base::Harness_Base() : Xeon_Base() {
         Page = "";
@@ -456,8 +450,8 @@ namespace Xeon {
         Page = page;
     }
 
-    XeonReponse Harness_Base::BuildResponse(string Request) {
-        XeonReponse Server_Response;
+    O2::O2Data Harness_Base::BuildResponse(string Request) {
+        O2::O2Data Server_Response;
         Server_Response.data = NULL;
         Server_Response.datalen = 0;
         //TODO: build web doc engine and respond with its response to this request

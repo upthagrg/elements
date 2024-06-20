@@ -38,6 +38,14 @@ using std::isblank;
 using std::transform;
 
 namespace O2 {
+#pragma region O2Data
+    struct O2Data {
+        string headers;
+        int datalen;
+        char* data;
+    };
+#pragma endregion 
+
     typedef int O2SocketID;
 
     struct Connected_Socket {
@@ -86,7 +94,7 @@ namespace O2 {
         char* Recieve(O2SocketID);
         O2SocketID* GetNextRequest();
         bool Select(int, bool*);
-        void Send(O2SocketID, string, char*, int);
+        void Send(O2SocketID, O2Data);
         void CloseConnectedSocket(O2SocketID);
         void CloseConnectedSockets();
         void Close();
@@ -325,7 +333,7 @@ namespace O2 {
     }
 
     //Send message over an open connection.
-    void O2Socket::Send(O2SocketID ID, string Headers, char* Data, int DataLen) {
+    void O2Socket::Send(O2SocketID ID, O2Data Data) {
         if (!Is_Valid) { ErrorAndDie(100, "Bad Socket"); }
         if (Connected_Sockets.find(ID) == Connected_Sockets.end()) {
             string ErrorMessage = "No socket of ID: ";
@@ -335,8 +343,8 @@ namespace O2 {
         }
         int BytesSent = 0;
         int TotalBytesSent = 0;
-        while (TotalBytesSent < Headers.size()) {
-            BytesSent = send(Connected_Sockets[ID].Soc, Headers.c_str(), Headers.size(), 0);
+        while (TotalBytesSent < Data.headers.size()) {
+            BytesSent = send(Connected_Sockets[ID].Soc, Data.headers.c_str(), Data.headers.size(), 0);
             if (BytesSent < 0) {
                 ErrorAndDie(7, "Failed to send");
             }
@@ -344,8 +352,8 @@ namespace O2 {
         }
         BytesSent = 0;
         TotalBytesSent = 0;
-        while (TotalBytesSent < DataLen) {
-            BytesSent = send(Connected_Sockets[ID].Soc, Data, DataLen, 0);
+        while (TotalBytesSent < Data.datalen) {
+            BytesSent = send(Connected_Sockets[ID].Soc, Data.data, Data.datalen, 0);
             if (BytesSent < 0) {
                 ErrorAndDie(7, "Failed to send");
             }
