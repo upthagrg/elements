@@ -47,31 +47,125 @@ bool Architecture_Initialized = false;
 std::mutex ArchLock;
 
 namespace Hydrogen {
+#pragma region Timer
+    class Timer {
+    private:
+        time_t Begining;
+        double Elapsed;
+        CRITICAL_SECTION TimerLock;
+    public:
+        Timer();
+        Timer(const Timer&);
+        ~Timer();
+        void Start();
+        double Stop();
+        void Reset();
+    };
+    Timer::Timer() {
+        InitializeCriticalSection(&TimerLock);
+        Begining = -1;
+        Elapsed = 0;
+    }
+    Timer::Timer(const Timer& src) {
+        InitializeCriticalSection(&TimerLock);
+        Begining = src.Begining;
+        Elapsed = src.Elapsed;
+    }
+    Timer::~Timer() {
+        DeleteCriticalSection(&TimerLock);
+    }
+    void Timer::Start() {
+        EnterCriticalSection(&TimerLock);
+        Begining = time(NULL);
+        LeaveCriticalSection(&TimerLock);
+    }
+    double Timer::Stop() {
+        EnterCriticalSection(&TimerLock);
+        Elapsed += (time(NULL) - Begining);
+        LeaveCriticalSection(&TimerLock);
+        return Elapsed;
+    }
+    void Timer::Reset() {
+        EnterCriticalSection(&TimerLock);
+        Elapsed = 0;
+        LeaveCriticalSection(&TimerLock);
+    }
+#pragma endregion
     class HydrogenArchBase {
     private:
-        time_t timer_var;
+        std::unordered_map<int, string> UUIDs;
+        std::unordered_map<int, Timer> Timers;
+        std::mutex ObjectLock;
+        CRITICAL_SECTION ScreenLock;
+        
     public:
         HydrogenArchBase();
-        void StartTimer();
-        double EndTimer();
+        void StartTimer(int);
+        double EndTimer(int);
+        void ResetTimer(int);
+        int CreateTimer();
+        int GetNextID();
+        int GetNextID(string);
+        void Display(string);
     };
     HydrogenArchBase::HydrogenArchBase() {
         if (!Architecture_Initialized) {
             ArchLock.lock();
             std::srand(time(NULL));
+            InitializeCriticalSection(&ScreenLock);
             Architecture_Initialized = true;
             ArchLock.unlock();
         }
     }
-    void HydrogenArchBase::StartTimer() {
-        timer_var = time(NULL);
+    void HydrogenArchBase::StartTimer(int Timer) {
+        if (Timers.find(Timer) != Timers.end()) {
+            Timers[Timer].Start();
+        }
     }
-    double HydrogenArchBase::EndTimer() {
-        return timer_var - time(NULL);
+    double HydrogenArchBase::EndTimer(int Timer) {
+        if (Timers.find(Timer) != Timers.end()) {
+            return Timers[Timer].Stop();
+        }
+        else {
+            return -1;
+        }
+    }
+    void HydrogenArchBase::ResetTimer(int Timer) {
+        if (Timers.find(Timer) != Timers.end()) {
+            Timers[Timer].Reset();
+        }
+    }
+    int HydrogenArchBase::CreateTimer() {
+        int TimerID = GetNextID("TIMERID");
+        Timer NewTimer;
+        Timers[TimerID] = NewTimer;
+        return TimerID;
+    }
+    int HydrogenArchBase::GetNextID() {
+        return GetNextID("");
+    }
+    int HydrogenArchBase::GetNextID(string IDType) {
+        int NewID = -1;
+        bool IDValid = false;
+        do {
+            NewID = rand();
+            if (UUIDs.find(NewID) == UUIDs.end() && NewID > 0) {
+                UUIDs[NewID] = IDType;
+                IDValid = true;
+            }
+
+        } while (!IDValid);
+        int ret = NewID;
+        return ret;
+    }
+    void HydrogenArchBase::Display(string Message) {
+        EnterCriticalSection(&ScreenLock);
+        cout << Message << endl;
+        LeaveCriticalSection(&ScreenLock);
     }
 }
 
-Hydrogen::HydrogenArchBase mybase;
+Hydrogen::HydrogenArchBase MyBase;
 
 bool str_equals(string, string);
 bool str_equals(char*, char*);
@@ -167,16 +261,19 @@ vector<string> TokenizeString(string input, const char* delim, vector<string> fi
 //Standardized way to error. pass in an int for the error code and a string for the error message
 void ErrorAndDie(int Error_Code, string Error) {
     if (Error.empty()) {
-        cout << "The application encountered an error." << endl;
+        MyBase.Display("The application encountered an error.");
     }
     else {
-        cout << Error << endl;
+        MyBase.Display(Error);
     }
     //0 should not be used as an error code in the Elements framework
     if (Error_Code == 0) {
         Error_Code = 1;
     }
-    cout << "Exiting with error code: " << Error_Code << endl;
+    string msg = "";
+    msg.append("Exiting with error code: ");
+    msg.append(to_string(Error_Code));
+    MyBase.Display(msg);
     fflush(stdout);
     exit(Error_Code);
 }
@@ -334,7 +431,7 @@ void QUEUE::print() {
     if (First != NULL) {
         ptr = First;
         while (ptr != NULL) {
-            cout << *((string*)ptr->Data) << endl;
+            MyBase.Display(*((string*)ptr->Data));
             ptr = ptr->Next;
         }
     }
@@ -465,13 +562,118 @@ void STACK::print() {
     if (First != NULL) {
         ptr = First;
         while (ptr != NULL) {
-            cout << *((string*)ptr->Data) << endl;
+            MyBase.Display(*((string*)ptr->Data));
             ptr = ptr->Next;
         }
     }
 }
 int STACK::GetSize() {
     return size;
+}
+#pragma endregion
+
+#pragma region Data Types
+class bin {
+private:
+    unsigned char* data;
+    int length;
+public:
+    bin();
+    ~bin();
+    bin(const bin&);
+    unsigned char& operator[](int);
+    void operator=(const bin&);
+    void operator=(const string&);
+    void operator=(const char*&);
+    void operator=(const unsigned char*&);
+    unsigned char* GetData();
+    int GetLength();
+    void SetData(unsigned char*, int);
+    void SetData(char*, int);
+    void SetData(const char*, int);
+    void SetData(string);
+};
+bin::bin() {
+    data = NULL;
+    length = 0;
+}
+bin::~bin() {
+    delete[] data;
+}
+bin::bin(const bin& src) {
+    length = src.length;
+    data = new unsigned char[length];
+    for (int i = 0; i < length; i++) {
+        data[i] = src.data[i];
+    }
+}
+unsigned char& bin::operator[](int i) {
+    if (i < 0 || i > length) {
+        ErrorAndDie(1, "Array index outside the bounds of the array");
+    }
+    return data[i];
+}
+void bin::operator=(const bin& src) {
+    length = src.length;
+    data = new unsigned char[length];
+    for (int i = 0; i < length; i++) {
+        data[i] = src.data[i];
+    }
+}
+void bin::operator=(const string& src) {
+    length = src.length();
+    data = new unsigned char[length];
+    for (int i = 0; i < length; i++) {
+        data[i] = src[i];
+    }
+}
+void bin::operator=(const char*& src) {
+    length = strlen(src);
+    data = new unsigned char[length];
+    for (int i = 0; i < length; i++) {
+        data[i] = src[i];
+    }
+}
+void bin::operator=(const unsigned char*& src) {
+    length = strlen((char*)src);
+    data = new unsigned char[length];
+    for (int i = 0; i < length; i++) {
+        data[i] = src[i];
+    }
+}
+unsigned char* bin::GetData() {
+    return data;
+}
+int bin::GetLength() {
+    return length;
+}
+void bin::SetData(unsigned char* src, int srclen) {
+    length = srclen;
+    data = new unsigned char[length];
+    for (int i = 0; i < length; i++) {
+        data[i] = src[i];
+    }
+}
+void bin::SetData(char* src, int srclen) {
+    length = srclen;
+    data = new unsigned char[length];
+    for (int i = 0; i < length; i++) {
+        data[i] = src[i];
+    }
+}
+void bin::SetData(const char* src, int srclen) {
+    length = srclen;
+    data = new unsigned char[length];
+    for (int i = 0; i < length; i++) {
+        data[i] = src[i];
+    }
+}
+void bin::SetData(string src) {
+    length = src.length();
+    data = new unsigned char[length];
+    for (int i = 0; i < length; i++) {
+        data[i] = src[i];
+    }
 }
 #pragma endregion
 
@@ -520,7 +722,7 @@ string GetStringInput(string message) {
     char next;
     do {
         fail = false;
-        cout << message << endl;
+        MyBase.Display(message);
         cin.clear();
         cin >> input;
 
@@ -532,7 +734,7 @@ string GetStringInput(string message) {
             }
         }
         if (fail) {
-            cout << "Not a valid entry" << endl;
+            MyBase.Display("Not a valid entry");
         }
     } while (fail);
     return input;
@@ -544,7 +746,7 @@ bool GetBoolInput(string message) {
     char next;
     do {
         fail = false;
-        cout << message << endl;
+        MyBase.Display(message);
         cin.clear();
         cin >> input;
 
@@ -556,7 +758,7 @@ bool GetBoolInput(string message) {
             }
         }
         if (fail) {
-            cout << "Not a valid entry" << endl;
+            MyBase.Display("Not a valid entry");
         }
     } while (fail);
     return input;
@@ -571,7 +773,7 @@ int GetIntInput(string message, bool positive, bool negative, bool zero) {
     }
     do {
         fail = false;
-        cout << message << endl;
+        MyBase.Display(message);
         cin.clear();
         cin >> input;
 
@@ -594,7 +796,7 @@ int GetIntInput(string message, bool positive, bool negative, bool zero) {
             }
         }
         if (fail) {
-            cout << "Not a valid entry" << endl;
+            MyBase.Display("Not a valid entry");
         }
     } while (fail);
     return input;
@@ -609,7 +811,7 @@ float GetFloatInput(string message, bool positive, bool negative, bool zero) {
     }
     do {
         fail = false;
-        cout << message << endl;
+        MyBase.Display(message);
         cin.clear();
         cin >> input;
 
@@ -632,7 +834,7 @@ float GetFloatInput(string message, bool positive, bool negative, bool zero) {
             }
         }
         if (fail) {
-            cout << "Not a valid entry" << endl;
+            MyBase.Display("Not a valid entry");
         }
     } while (fail);
     return input;
@@ -647,7 +849,7 @@ double GetDoubleInput(string message, bool positive, bool negative, bool zero) {
     }
     do {
         fail = false;
-        cout << message << endl;
+        MyBase.Display(message);
         cin.clear();
         cin >> input;
 
@@ -670,7 +872,7 @@ double GetDoubleInput(string message, bool positive, bool negative, bool zero) {
             }
         }
         if (fail) {
-            cout << "Not a valid entry" << endl;
+            MyBase.Display("Not a valid entry");
         }
     } while (fail);
     return input;

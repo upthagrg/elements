@@ -8,7 +8,7 @@ Description: This file is the testing environment for the Elements application f
 #include "Xeon.hpp"
 
 int main() {
-    Xeon::Test_Xeon();
+    Xeon::XeonSetupWizard();
     return 0;
 }
 

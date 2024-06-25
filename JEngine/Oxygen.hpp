@@ -39,14 +39,57 @@ using std::transform;
 
 namespace O2 {
 #pragma region O2Data
-    struct O2Data {
-        string headers;
-        int datalen;
-        char* data;
+    class O2Data {
+    private:
+        vector<bin> data;
+    public:
+        O2Data();
+        ~O2Data();
+        O2Data(const O2Data&);
+        int Size();
+        bin& operator[](int);
+        void operator=(const O2Data&);
+        void AddData(bin);
+        void AddData(string);
     };
+    O2Data::O2Data() {}
+    O2Data::~O2Data() {}
+    O2Data::O2Data(const O2Data& src) {
+        for (int i = 0; i < src.data.size(); i++) {
+            data.push_back(src.data[i]);
+        }
+    }
+    int O2Data::Size() {
+        return data.size();
+    }
+    bin& O2Data::operator[](int i) {
+        if (i < 0 || i > data.size()) {
+            ErrorAndDie(1, "Array index outside the bounds of the array");
+        }
+        return data[i];
+    }
+    void O2Data::operator=(const O2Data& src) {
+        for (int i = 0; i < src.data.size(); i++) {
+            data.push_back(src.data[i]);
+        }
+    }
+    void O2Data::AddData(bin in) {
+        data.push_back(in);
+    }
+    void O2Data::AddData(string in) {
+        bin tmp;
+        tmp = in;
+        data.push_back(tmp);
+    }
 #pragma endregion 
 
     typedef int O2SocketID;
+    enum SocketState {
+        Unknown = 0,
+        ReadyToRead = 1,
+        DataSent = 2,
+        TimedOut = 3
+    };
 
     struct Connected_Socket {
         SOCKET Soc;
@@ -77,12 +120,12 @@ namespace O2 {
         int Buffer_Size;
         char* Buffer;
         bool Is_Valid;
-        bool selectstop;
+        bool EndServer;
+        bool O2Debug;
         struct timeval Timeout;
         struct fd_set master_set;
         struct fd_set working_set;
         SOCKET MaxSocket;
-        O2SocketID Get_Next_ID();
 
     public:
         O2Socket();
@@ -93,7 +136,7 @@ namespace O2 {
         O2SocketID AcceptNewConnection();
         char* Recieve(O2SocketID);
         O2SocketID* GetNextRequest();
-        bool Select(int, bool*);
+        void Select(int, bool*);
         void Send(O2SocketID, O2Data);
         void CloseConnectedSocket(O2SocketID);
         void CloseConnectedSockets();
@@ -102,9 +145,12 @@ namespace O2 {
         void Unlock();
         CONDITION_VARIABLE* GetCondition();
         CRITICAL_SECTION* GetLock();
+        char* GetSocketMessage(O2SocketID);
+        void ToggleDebug();
     };
     //Default constructor of am O2Socket object. The object is unusable in this state
     O2Socket::O2Socket() : HydrogenArchBase() {
+        O2Debug = false;
         Socket_Addr_In_Size = -1;
         Allowed_Backlog = -1;
         Socket_Bound = false;
@@ -119,6 +165,7 @@ namespace O2 {
     }
     //Constructor of a usable O2Socket object
     O2Socket::O2Socket(WORD WSAVersion, int Address_Family, int Type, int Protocol, int Read_Buffer_Size, bool Blocking) : HydrogenArchBase() {
+        O2Debug = false;
         Socket_Addr_In_Size = 0;
         Allowed_Backlog = 0;
         Socket_Bound = false;
@@ -165,6 +212,10 @@ namespace O2 {
             Connected_Sockets.clear();
         }
     }
+    //Toggle Debug Flag
+    void O2Socket::ToggleDebug() {
+        O2Debug = !O2Debug;
+    }
 
     //Bind the object's internal Socket to the port
     void O2Socket::PortBind(string IPAddress, int Port) {
@@ -195,127 +246,199 @@ namespace O2 {
 
     //Return message from a sepcified open connection
     char* O2Socket::Recieve(O2SocketID ID) {
+        int BytesRead;
+        bool Retry;
+        int RetryCount = 0;
+        string Message = "";
         if (Connected_Sockets.find(ID) == Connected_Sockets.end()) {
             string ErrorMessage = "No socket of ID: ";
             ErrorMessage.append(to_string(ID));
             ErrorMessage.append(" found in Connected_Sockets");
             ErrorAndDie(11, ErrorMessage);
         }
-        char* Return = NULL;
-        Connected_Sockets[ID].LastAccessed = time(NULL);
 
+        char* Return;
+        Connected_Sockets[ID].LastAccessed = time(NULL);
         memset(Connected_Sockets[ID].SocBuff, '\0', Buffer_Size);
-        int BytesRead;
+        Return = NULL;
+        Retry = false;
+        BytesRead = 0;
+        Lock();
         BytesRead = recv(Connected_Sockets[ID].Soc, Connected_Sockets[ID].SocBuff, Buffer_Size, 0);
+        Unlock();
+        if (O2Debug) {
+            Message.append("Recieve got ");
+            Message.append(to_string(BytesRead));
+            Message.append(" bytes from recv on ");
+            //Sleep(500);//Use this sleep to slow down the server and diagnose issues
+            Message.append(to_string(ID));
+            MyBase.Display(Message);
+            Message = "";
+        }
         if (BytesRead <= 0) {
-            //Connection no longer valid < 0 or closed by client == 0 
-            CloseConnectedSocket(ID);
+            int WSAError = WSAGetLastError();
+            if (WSAError != WSAEWOULDBLOCK && Connected_Sockets[ID].State == DataSent) {
+                if (O2Debug) {
+                    MyBase.Display("recv returned 0 bytes, Data has been sent, and error is not WSAEWOULDBLOCK closing connection on server");
+                }
+                CloseConnectedSocket(ID);
+            }
             Return = NULL;
         }
         else {
             Return = Connected_Sockets[ID].SocBuff;
         }
-        return Return;
+
+        char* ret = Return;
+        return ret;
     }
 
     O2SocketID* O2Socket::GetNextRequest() {
         return (O2SocketID*)Requests.Dequeue();
     }
+
     //Select wrapper, returns false if timeout. Errors internally if there was an error from select. 
-    bool O2Socket::Select(int timeout, bool* extern_stop) {
+    void O2Socket::Select(int timeout, bool* extern_run) {
+        int ret;
+        bool recieve;
+        string Message;
+        O2SocketID newid;
+        O2SocketID* q;
+        if (O2Debug) {
+            MyBase.Display("Started select");
+            Message.append("Listener Socket is ");
+            Message.append(to_string(ListenerSocket));
+            MyBase.Display(Message);
+            Message = "";
+        }
         //set timeout
         Timeout.tv_sec = timeout;
+        char* enqueueing;
         //flags
-        selectstop = false;
+        EndServer = false;
         //Initialize
         FD_ZERO(&master_set);
         MaxSocket = ListenerSocket;
         FD_SET(ListenerSocket, &master_set);
+
         do {
+            recieve = false;
+            Message = "";
+            ret = 0;
+            q = NULL;
             //Copy the master fd_set over to the working fd_set.
             memcpy(&working_set, &master_set, sizeof(master_set));
             //Call select() and wait the  timeout interval for it to complete.
-            int ret = select(MaxSocket + 1, &working_set, NULL, NULL, &Timeout);
+            if (O2Debug) {
+                MyBase.Display("Selecting");
+            }
+            ret = select(MaxSocket + 1, &working_set, NULL, NULL, &Timeout);
             //Handle return
-            switch (ret) {
-            case -1:
+            if (ret < 0) {
                 //Error
-                ErrorAndDie(405, "Error on select");
-            case 0:
+                if (O2Debug) {
+                    Message.append("Select failed with ");
+                    Message.append(to_string(errno));
+                    MyBase.Display(Message);
+                    Message = "";
+                }
+                break;
+                //ErrorAndDie(405, "Error on select");
+            }
+            else if (ret == 0) {
                 //Timeout
-                return false;
-            default:
+                if (O2Debug) {
+                    MyBase.Display("select timed out");
+                }
+                //break;
+            }
+            else {
                 //Sucess
-                //One or more descriptors are readable. Need to determine which ones they are.
-                int desc_ready = ret;
-                O2SocketID* newid = NULL;
+                //Lock all requests
                 Requests.Lock();
-                for (int i = 0; i <= MaxSocket && desc_ready > 0; ++i)
-                {
-                    //Check to see if this descriptor is ready
-                    if (FD_ISSET(i, &working_set))
+                //One or more descriptors are readable. Need to determine which ones they are.
+                int desc_ready = ret; //Get the number of ready sockets
+                for (int i = 0; i <= MaxSocket && desc_ready > 0; ++i) {
+                    if (FD_ISSET(i, &working_set)) //This is in the working set, thus select said it is ready
                     {
-                        //Found a readable file, the number we need to find in total is now one less
+                        //Reduce the number of descriptors to check by 1
                         desc_ready -= 1;
-                        //Check to see if this is the listening socket
-                        if (i == ListenerSocket) {
-                            //New connection found
+                        //This is the listener socket, that means we have new connections to accept
+                        if (i == ListenerSocket){
+                            if (O2Debug) {
+                                Message.append("New Connection to accept on ");
+                                Message.append(to_string(i));
+                                MyBase.Display(Message);
+                                Message = "";
+                            }
                             do {
-                                //Accept each incoming connection. If accept fails with EWOULDBLOCK, 
-                                //then we have accepted all of them. Any otherfailure on accept will cause us to end the server.
-                                newid = new O2SocketID;
-                                (*newid) = this->AcceptNewConnection();
-                                if (*newid < 0) {
-                                    if (*newid != EWOULDBLOCK) {
-                                        selectstop = true;
+                                newid = AcceptNewConnection();
+                                if (newid < 0)
+                                {
+                                    int error = WSAGetLastError();
+                                    if (error != WSAEWOULDBLOCK)
+                                    {
+                                        if (O2Debug) {
+                                            Message.append("AcceptNewConnection failed with ");
+                                            Message.append(to_string(error));
+                                            MyBase.Display(Message);
+                                            Message = "";
+                                        }
+                                        EndServer = true;
                                     }
                                     break;
                                 }
-                                else {
-                                    //enqueue the newid
-                                    Requests.Enqueue((void*)newid, false);
-                                    //add to master read set
-                                    FD_SET((*newid), &master_set);
-                                    //update max id if larger than the current max id
-                                    if ((*newid) > MaxSocket) {
-                                        MaxSocket = (*newid);
-                                    }
+                                //Add the new socket to the master set
+                                FD_SET(newid, &master_set);
+                                //Update the max socket
+                                if (newid > MaxSocket) {
+                                    MaxSocket = newid;
                                 }
-                            } while (*newid != -1); //loop back and accept another incoming connection
+                                //Loop back and accept another connections
+                            } while (newid != -1);
                         }
+                        //This is not the listener, thus we can recieve data instead of accept
                         else {
-                            //This is an open connection,  so an existing connection is readable. We do not need to call accept.
-                            //enqueue existing descriptor again
-                            if (Connected_Sockets.find(i) != Connected_Sockets.end()) {
-                                Connected_Sockets[i].LastAccessed = time(NULL);
-                                Requests.Enqueue((void*)&(Connected_Sockets[i].Soc), false);
-                            }
-
+                            recieve = true;
+                            do {
+                                //Recieve data from the connection
+                                char* enqueueing = Recieve(i);
+                                recieve = false;
+                                //If NULL, stop loop and do not enqueue the socket
+                                if (enqueueing == NULL){
+                                    break;
+                                }
+                                else {
+                                    q = new O2SocketID;
+                                    *q = i;
+                                    Requests.Enqueue((void*)q, false);
+                                    break;
+                                }
+                            } while (recieve);
                         }
                     }
                 }
+                //Unlock Requests
                 Requests.Unlock();
+                //Signal a worker thread
                 //Requests.Signal(false);
-                return true;
             }
-            if (extern_stop != NULL && *extern_stop == true) {
-                selectstop = true;
-                break;
-            }
-        } while (selectstop == false);
+        } while (!EndServer && *extern_run);
     }
 
     //This can build a new Connected_Socket in the Connected_Sockets map
     //That new Connected_Socket has its own buffer
     //This then returns the O2SocketID (int) back
     O2SocketID O2Socket::AcceptNewConnection() {
+        Lock();
         if (!Is_Valid) { ErrorAndDie(100, "Bad Socket"); }
-        int BytesRead = 0;
         if (!Socket_Bound) {
             ErrorAndDie(21, "Cannot read from an unbound port");
         }
-        SOCKET New_Socket = accept(ListenerSocket, (SOCKADDR*)&Socket_Addr_In, &Socket_Addr_In_Size);
+        //SOCKET New_Socket = accept(ListenerSocket, (SOCKADDR*)&Socket_Addr_In, &Socket_Addr_In_Size);
+        SOCKET New_Socket = accept(ListenerSocket, NULL, NULL);
         if (New_Socket < 0) {
+            //Most likely -1, indicating would block, and thus no new connections
             return New_Socket;
         }
         //Build the new Connected_Socket
@@ -325,44 +448,82 @@ namespace O2 {
         NewConnectedSocket.LastAccessed = NewConnectedSocket.Created;
         NewConnectedSocket.Soc = New_Socket;
         NewConnectedSocket.SocBuff = SBuff;
-        NewConnectedSocket.State = -1; //TODO: Implement socket states
-        O2SocketID NewID = New_Socket;
-        //Add the new Connected_Socket to Connected_Sockets
-        Connected_Sockets[NewID] = NewConnectedSocket;
-        return NewID;
+        NewConnectedSocket.State = ReadyToRead;
+        //Add the new Connected_Socket to Connected_Sockets map
+        Connected_Sockets[New_Socket] = NewConnectedSocket;
+        Unlock();
+        O2SocketID ret = New_Socket;
+        return ret;
     }
 
     //Send message over an open connection.
     void O2Socket::Send(O2SocketID ID, O2Data Data) {
         if (!Is_Valid) { ErrorAndDie(100, "Bad Socket"); }
         if (Connected_Sockets.find(ID) == Connected_Sockets.end()) {
+            if (O2Debug) {
+
+            }
             string ErrorMessage = "No socket of ID: ";
             ErrorMessage.append(to_string(ID));
             ErrorMessage.append(" found in Connected_Sockets");
             ErrorAndDie(13, ErrorMessage);
         }
-        int BytesSent = 0;
-        int TotalBytesSent = 0;
-        while (TotalBytesSent < Data.headers.size()) {
-            BytesSent = send(Connected_Sockets[ID].Soc, Data.headers.c_str(), Data.headers.size(), 0);
-            if (BytesSent < 0) {
-                ErrorAndDie(7, "Failed to send");
+        int BytesSent;
+        int TotalBytesSent;
+        bool CanSend = true;
+        string Message;
+
+        for (int i = 0; i < Data.Size() && CanSend; i++) {
+            BytesSent = 0;
+            TotalBytesSent = 0;
+            while (TotalBytesSent < Data[i].GetLength() && CanSend) {
+                BytesSent = send(Connected_Sockets[ID].Soc, (char*)Data[i].GetData(), Data[i].GetLength(), 0);
+                int error = WSAGetLastError();
+                if (BytesSent < 0) {
+                    if (error == WSAECONNABORTED) {
+                        //Send error was caused by the client forcably closign the connection, we can ignore and drop this socket
+                        if (O2Debug) {
+                            Message = "";
+                            Message.append("Client closed connection, cannot send data, closing conenction ");
+                            Message.append(to_string(ID));
+                        }
+                        CloseConnectedSocket(ID);
+                        CanSend = false;
+                    }
+                    else {
+                        if (O2Debug) {
+                            Message = "";
+                            Message.append("Send failed\n");
+                            Message.append("Error: ");
+                            Message.append(to_string(error));
+                            Message.append("\nID: ");
+                            Message.append(to_string(ID));
+                            Message.append("\nData Size: ");
+                            Message.append(to_string(Data.Size()));
+                            Message.append("\nI: ");
+                            Message.append(to_string(i));
+                            Message.append("\nData length: ");
+                            Message.append(to_string(Data[i].GetLength()));
+                            Message.append("\nData: ");
+                            Message.append((char*)Data[i].GetData());
+                            Message.append("\nTotalBytesSent: ");
+                            Message.append(to_string(TotalBytesSent));
+                            Message.append("\nBytesSent: ");
+                            Message.append(to_string(BytesSent));
+                            MyBase.Display(Message);
+                        }
+                        ErrorAndDie(7, "Failed to send");
+                    }
+                }
+                TotalBytesSent += BytesSent;
             }
-            TotalBytesSent += BytesSent;
         }
-        BytesSent = 0;
-        TotalBytesSent = 0;
-        while (TotalBytesSent < Data.datalen) {
-            BytesSent = send(Connected_Sockets[ID].Soc, Data.data, Data.datalen, 0);
-            if (BytesSent < 0) {
-                ErrorAndDie(7, "Failed to send");
-            }
-            TotalBytesSent += BytesSent;
-        }
+        Connected_Sockets[ID].State = DataSent;
     }
 
     //Close an open connection
     void O2Socket::CloseConnectedSocket(O2SocketID ID) {
+        Lock();
         if (!Is_Valid) { ErrorAndDie(100, "Bad Socket"); }
         memset(Socket_Error, '\0', Socket_Error_Size);
         //Find the socket in Usable_Sockets
@@ -376,20 +537,33 @@ namespace O2 {
             ErrorCheck0((closesocket(Connected_Sockets[ID].Soc)), 24, "Failed to close an open connection");
         }
         //free the socket buffer
-        delete Connected_Sockets[ID].SocBuff;
+        delete[] Connected_Sockets[ID].SocBuff;
         //remove record from the map of sockets
         Connected_Sockets.erase(ID);
         //remove from the Master set
+        if (O2Debug) {
+            string message = "";
+            message.append("Removing ");
+            message.append(to_string(ID));
+            message.append(" From set");
+            MyBase.Display(message);
+        }
         FD_CLR(ID, &master_set);
         //Find new max socket
         if (ID == MaxSocket) {
-            Lock();//Do not let multiple threads update max socket at once
+            if (O2Debug) {
+                MyBase.Display("max socket was ");
+                MyBase.Display(to_string(MaxSocket));
+            }
             while (FD_ISSET(MaxSocket, &master_set) == FALSE) {
                 MaxSocket -= 1;
             }
-            Unlock();
+            if (O2Debug) {
+                MyBase.Display("new max socket ");
+                MyBase.Display(to_string(MaxSocket));
+            }
         }
-
+        Unlock();
     }
     //Close all open connections
     void O2Socket::CloseConnectedSockets() {
@@ -408,24 +582,12 @@ namespace O2 {
     }
     //Close the socket. Closes all open connections, then closes the listening socket, then calls WSACleanup. 
     void O2Socket::Close() {
-        //TODO: figure out perfect closing
-        //if (Connected_Sockets.size() > 0) {
-        //    CloseConnectedSockets();
-        //}
         if (!Is_Valid) { ErrorAndDie(100, "Bad Socket"); }
         memset(Socket_Error, '\0', Socket_Error_Size);
         if (getsockopt(ListenerSocket, SOL_SOCKET, SO_ERROR, Socket_Error, &Socket_Error_Size)) {
             ErrorCheck0((closesocket(ListenerSocket)), 23, "Failed to close open socket");
         }
         ErrorCheck0(WSACleanup(), 24, "WSA Cleanup failed");
-    }
-    //Get the next unused Socket ID
-    O2SocketID O2Socket::Get_Next_ID() {
-        O2SocketID NewID;
-        do {
-            NewID = std::rand();
-        } while (Connected_Sockets.find(NewID) != Connected_Sockets.end());
-        return NewID;
     }
     //Lock for object operations
     void O2Socket::Lock() {
@@ -440,5 +602,14 @@ namespace O2 {
     }
     CRITICAL_SECTION* O2Socket::GetLock() {
         return Requests.GetLock();
+    }
+    char* O2Socket::GetSocketMessage(O2SocketID ID) {
+        if (Connected_Sockets.find(ID) != Connected_Sockets.end()) {
+            return Connected_Sockets[ID].SocBuff;
+        }
+        else {
+            //ErrorAndDie(1002, "Cannot find socket in set of sockets to get message from");
+            return NULL;
+        }
     }
 }

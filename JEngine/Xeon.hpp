@@ -48,6 +48,7 @@ namespace Xeon {
         void SetConnectionTimeout(int);
         CONDITION_VARIABLE* GetCondition();
         CRITICAL_SECTION* GetLock();
+        char* GetSocketMessage(O2::O2SocketID);
 
     protected:
         O2::O2Socket* Server_Socket;
@@ -65,7 +66,6 @@ namespace Xeon {
         int WorkerThreads;
         vector<std::thread> Workers;
         int PollTimeout;
-        int ConnectionTimeout;
     };
     //Default constructor of Xeon_Base objects, this would be an unusable object in this state
     Xeon_Base::Xeon_Base() {
@@ -96,7 +96,7 @@ namespace Xeon {
         XDebug = false;
         Server_Socket = new O2::O2Socket(MAKEWORD(2, 2), AF_INET, SOCK_STREAM, IPPROTO_TCP, Buffer_Size, (workerthreads <= 0));
         WorkerThreads = workerthreads;
-        PollTimeout = 10;
+        PollTimeout = 30;
     }
     //Xeon_Base destructor
     Xeon_Base::~Xeon_Base() {
@@ -109,25 +109,39 @@ namespace Xeon {
     //(virtual) Default start function, developers can override this
     void Xeon_Base::Start() {
         Lock();
-        cout << "<--------------------------Xeon-------------------------->" << endl << endl;
-        cout << "Binding Socket..." << endl;
+        MyBase.Display("<--------------------------Xeon-------------------------->");
+        MyBase.Display("");
+        MyBase.Display("Binding Socket...");
         Server_Socket->PortBind(Addr, Port);
 
-        cout << "Listening to Socket..." << endl;
+        MyBase.Display("Listening to Socket...");
         Server_Socket->PortListen(Allowed_Backlog);
 
         if (WorkerThreads > 0) {
-            cout << "Starting Worker(s)..." << endl;
+            MyBase.Display("Starting Worker(s)...");
             for (int i = 0; i < WorkerThreads; i++) {
                 Workers.push_back(std::thread(Handle_Request, this));
             }
         }
 
-        cout << "Started on " << Addr << ":" << Port << endl;
+        string Message = "";
+        Message.append("Started on ");
+        Message.append(Addr);
+        Message.append(":");
+        Message.append(to_string(Port));
+        MyBase.Display(Message);
+        Message = "";
         if (LAN_Address != "" && OpenToLANAddress && OpenToLANPort) {
-            cout << "Any machine on local network can access at: " << LAN_Address << endl;
+            Message.append("Any machine on local network can access at: ");
+            Message.append(LAN_Address);
+            MyBase.Display(Message);
+            Message = "";
         }
-        cout << "Launch: http://localhost:" << Port << "/" << endl;
+        Message.append("Launch: http://localhost:");
+        Message.append(to_string(Port));
+        Message.append("/");
+        MyBase.Display(Message);
+        Message = "";
 
         //String to hold the incoming client request data 
         string IncomingMessage;
@@ -152,9 +166,9 @@ namespace Xeon {
                 if (*NewConnection > 0) {
                     IncomingMessage.append(Recieve(*NewConnection));
                     if (XDebug) {
-                        cout << "<--------Request-------->\n\n" << endl;
-                        cout << IncomingMessage << endl;
-                        cout << "<--------End-------->\n\n" << endl;
+                        MyBase.Display("<--------Request-------->\n\n");
+                        MyBase.Display(IncomingMessage);
+                        MyBase.Display("<--------End-------->\n\n");
                     }
                     SendResponse((*NewConnection), IncomingMessage);
                     IncomingMessage = "";
@@ -162,7 +176,7 @@ namespace Xeon {
             }
         }
         Running = false;
-        cout << "Xeon Stopped." << endl;
+        MyBase.Display("Xeon Stopped.");
     }
     void Xeon_Base::CloseConnectedSocket(O2::O2SocketID ID) {
         //Close the connection
@@ -172,20 +186,21 @@ namespace Xeon {
     void Xeon_Base::SendResponse(O2::O2SocketID ID, string Request) {
         if (!Request.empty()) {
             if (XDebug) {
-                cout << "Xeon Read: " << endl;
-                cout << Request << endl;
+                MyBase.Display("Xeon Read: ");
+                MyBase.Display(Request);
             }
             //This server's O2Socket will send out the data from this server's respond function which is determined by the incoming request.
 
-            Server_Socket->Send(ID, BuildResponse(Request));
+            O2::O2Data Response = BuildResponse(Request);
+            Server_Socket->Send(ID, Response);
         }
     }
     //(virtual) Stop the object. Developers can override this.
     void Xeon_Base::Stop() {
         Lock();
-        cout << "Safely Stopping Xeon..." << endl;
+        MyBase.Display("Safely Stopping Xeon...");
         Run = false;
-        cout << "Stopping Worker(s)..." << endl;
+        MyBase.Display("Stopping Worker(s)...");
         int Worker_Stop_Attempts;
         for (int i = 0; i < Workers.size(); i++) {
             Worker_Stop_Attempts = 0;
@@ -194,13 +209,13 @@ namespace Xeon {
                 Worker_Stop_Attempts++;
             }
             if (Worker_Stop_Attempts >= 100) {
-                cout << "Failed to Stop Worker(s)" << endl;
+                MyBase.Display("Failed to Stop Worker(s)");
             }
             else {
                 Workers[i].join();
             }
         }
-        cout << "Closing Socket(s)..." << endl;
+        MyBase.Display("Closing Socket(s)...");
         Server_Socket->Close();
         Unlock();
     }
@@ -222,24 +237,25 @@ namespace Xeon {
     //print the input if the object is in debug mode
     void Xeon_Base::DebugMessage(string Message) {
         if (XDebug){
-            cout << Message << endl;
+            MyBase.Display(Message);
         }
     }
     //Turn on debug
     void Xeon_Base::ToggleDebug() {
         XDebug = !XDebug;
+        Server_Socket->ToggleDebug();
     }
     void Xeon_Base::SetPollTimeout(int seconds) {
         PollTimeout = seconds;
-    }
-    void Xeon_Base::SetConnectionTimeout(int seconds) {
-        ConnectionTimeout = seconds;
     }
     CONDITION_VARIABLE* Xeon_Base::GetCondition() {
         return Server_Socket->GetCondition();
     }
     CRITICAL_SECTION* Xeon_Base::GetLock() {
         return Server_Socket->GetLock();
+    }
+    char* Xeon_Base::GetSocketMessage(O2::O2SocketID ID) {
+        return Server_Socket->GetSocketMessage(ID);
     }
 
     //non-member function for a worker thread to process member data
@@ -253,14 +269,10 @@ namespace Xeon {
             ID = b->GetNextRequest();
             if (ID != NULL) {
                 IncommingMessageCstr = NULL;
-                IncommingMessageCstr = b->Recieve((*ID));
+                //IncommingMessageCstr = b->Recieve((*ID));
+                IncommingMessageCstr = b->GetSocketMessage(*ID);
                 if (IncommingMessageCstr != NULL) {
                     IncomingMessage.append(IncommingMessageCstr);
-                    //if (XDebug) {
-                    //    cout << "<--------Request-------->" << endl;
-                    //    cout << IncomingMessage << endl;
-                    //    cout << "<--------End-------->" << endl;
-                    //}
                     b->SendResponse((*ID), IncomingMessage);
                     IncomingMessage = "";
                 }
@@ -283,16 +295,16 @@ namespace Xeon {
     Server_Base::Server_Base(string lanaddress, string addr, int port, int allowed_backlog, int buffer_size, int workerthreads) : Xeon_Base(lanaddress, addr, port, allowed_backlog, buffer_size, workerthreads) {}
 
     O2::O2Data Server_Base::BuildResponse(string Request) {
-        O2::O2Data Server_Response;
-        Server_Response.data = NULL;
-        Server_Response.datalen = 0;
+        int FileLength = 0;
+        bin Content;
         int DataTypeEnm = HTML;
         string compare = "";
         string Line;
-        string File;
+
         string Path = "C:\\ServerFiles\\";
         std::regex File_Extension_Regex("^[^\s]+\.(html|jpg)$");
         std::regex File_Extension_jpg_Regex("^[^\s]+\.(jpg)$");
+
         string Requested_File;
         vector<string> Filter;
         vector<string> Tokens = TokenizeString(Request, "\n", Filter);
@@ -314,11 +326,15 @@ namespace Xeon {
             Requested_File.append("index.html");
         }
         if (XDebug) {
-            cout << "File: " << Requested_File << endl;
+            string msg = "";
+            msg.append("File: ");
+            msg.append(Requested_File);
+            MyBase.Display(msg);
         }
-
+        //Create HTTP Headers
         string headers = "HTTP/1.1 200 OK\n";
         headers.append("Date: ");
+        //Capture current time
         string GMTTimeString = "";
         char* TimeString = new char[26];
         memset(TimeString, '\0', 26);
@@ -334,73 +350,53 @@ namespace Xeon {
         }
         headers.append(TimeString);
         headers.append("GMT\n");
+        //Add Server Info
         headers.append("Server: ");
         headers.append(SERVER_VERSION);
         headers.append("\n");
         headers.append("Content-Type: ");
         if (DataTypeEnm == HTML) {
             headers.append("text/html");
-            headers.append("\nContent - Length: ");
-            ifstream ReadFile(Requested_File);
-            if (ReadFile.is_open()) {
-                while (getline(ReadFile, Line)) {
-                    File.append(Line);
-                    File.append("\n");
-                }
-                ReadFile.close();
-                headers.append(to_string(strlen(File.c_str()) + 1));
-                headers.append("\nConnection: close");
-                headers.append("\n\n");
-                Server_Response.headers = headers;
-                Server_Response.data = new char[strlen(File.c_str()) + 1];
-                Server_Response.datalen = strlen(File.c_str()) + 1;
-
-                strcpy(Server_Response.data, File.c_str());
-                if (XDebug) {
-                    cout << "<--------Sending-------->" << endl;
-                    cout << Server_Response.headers << endl;
-                    cout << Server_Response.data << endl;
-                    cout << "<--------End-------->" << endl;
-                }
-            }
-            else {
-                ErrorAndDie(404, "File not found"); //TODO: respond to client with 404 not found.
-            }
         }
         else if (DataTypeEnm == JPEG) {
             headers.append("image/jpeg");
-            FILE* Image;
-            int ImageSize = 0;
-            Image = fopen(Requested_File.c_str(), "rb");
-            if (!Image) {
-                ErrorAndDie(404, "file not found");
-            }
-            fseek(Image, 0, SEEK_END);
-            ImageSize = ftell(Image);
-            fseek(Image, 0, SEEK_SET);
-
-            headers.append("\nContent-Length: ");
-            headers.append(to_string(ImageSize));
-            headers.append("\nConnection: close");
-            headers.append("\n\n");
-
-            Server_Response.headers = headers;
-            Server_Response.data = new char[ImageSize];
-            Server_Response.datalen = ImageSize;
-            memset(Server_Response.data, '\0', ImageSize);
-
-            int BytesRead = 0;
-            do {
-                BytesRead = fread(Server_Response.data, 1, ImageSize, Image);
-            } while (BytesRead > 0);
-            fclose(Image);
         }
         else {
             ErrorAndDie(104, "Unknown content type");
         }
-        O2::O2Data Server_Response2;
-        Server_Response2 = Server_Response;
-        return Server_Response;
+
+        //Get Content from file
+        FILE* File;
+        int FileSize = 0;
+        File = fopen(Requested_File.c_str(), "rb");
+        if (!File) {
+            ErrorAndDie(404, "file not found");
+        }
+        fseek(File, 0, SEEK_END);
+        FileSize = ftell(File);
+        fseek(File, 0, SEEK_SET);
+
+        headers.append("\nContent-Length: ");
+        headers.append(to_string(FileSize));
+        headers.append("\nConnection: close");
+        headers.append("\n\n");
+
+        O2::O2Data Response;
+        Response.AddData(headers); //Add the HTTP Headers to the response
+        char* FileData = new char[FileSize];
+        memset(FileData, '\0', FileSize);
+
+        int BytesRead = 0;
+        do {
+            BytesRead = fread(FileData, 1, FileSize, File);
+        } while (BytesRead > 0);
+        fclose(File);
+
+        Content.SetData(FileData, FileSize); //Convert Image data to binary
+        Response.AddData(Content);//Add the binary content to the reponse
+
+        O2::O2Data FinalResponse = Response;
+        return FinalResponse;
     }
 
     class LocalServer : public Server_Base {
@@ -420,12 +416,12 @@ namespace Xeon {
     class WebServer : public Server_Base {
     public:
         WebServer();
-        WebServer(int, int, int, bool, bool);
+        WebServer(int, int, int, bool);
     };
 
     WebServer::WebServer() : Server_Base(GetIP(), "0.0.0.0", 80, 20, KB(32), 0) {}
 
-    WebServer::WebServer(int allowed_backlog, int buffer_size, int workerthreads, bool auto_start, bool debug) : Server_Base(GetIP(), "0.0.0.0", 80, allowed_backlog, buffer_size, workerthreads) {
+    WebServer::WebServer(int allowed_backlog, int buffer_size, int workerthreads, bool auto_start) : Server_Base(GetIP(), "0.0.0.0", 80, allowed_backlog, buffer_size, workerthreads) {
         if (auto_start) {
             this->Start();
         }
@@ -451,19 +447,18 @@ namespace Xeon {
     }
 
     O2::O2Data Harness_Base::BuildResponse(string Request) {
-        O2::O2Data Server_Response;
-        Server_Response.data = NULL;
-        Server_Response.datalen = 0;
+        O2::O2Data Response;
         //TODO: build web doc engine and respond with its response to this request
         string headers = "HTTP/1.1 200 OK\nContent-Type: text/html\nContent-Length: ";
         headers.append(to_string(Page.size()));
         headers.append("\n\n");
-        Server_Response.headers = headers;
-        Server_Response.data = new char[Page.size()];
-        Server_Response.datalen = Page.size();
-        strcpy(Server_Response.data, Page.c_str());
+        Response.AddData(headers);
 
-        return Server_Response;
+        bin Content;
+        Content.SetData(Page.c_str(), Page.size());
+        Response.AddData(Content);
+
+        return Response;
     }
 
     class LocalHarness : public Harness_Base {
@@ -497,42 +492,58 @@ namespace Xeon {
         server->Start();
     }
 
-    void Test_Xeon() {
-        string input;
+    void XeonSetupWizard() {
+        string Input;
         int Backlog = 1;
         int Buffer = KB(32);
-        int threads = 0;
-        bool fail;
-        char next;
+        int Threads = 0;
+        bool Fail;
+        char Next;
+        bool AdditionalLogging = false;
+        int PollTimeOut = 30;
         //WebDoc::home();
+        MyBase.Display("Welcome to the Xeon Set Up Wizard");
         do {
-            fail = false;
-            threads = GetIntInput("How many worker threads would you like?", true, false, true);
-            if (threads < 0 || threads > 8) {
-                cout << "threads must be between 0 and 8" << endl; //TOOD: make a hydrogen base CPU info object to get max threads
-                fail = true;
+            Fail = false;
+            Threads = GetIntInput("How many worker threads would you like?", true, false, true);
+            if (Threads < 0 || Threads > 8) {
+                MyBase.Display("threads must be between 0 and 8"); //TOOD: make a hydrogen base CPU info object to get max threads
+                Fail = true;
             }
-        } while (fail);
+        } while (Fail);
+        do {
+            Fail = false;
+            AdditionalLogging = GetBoolInput("Would you like additional logging?");
+        } while (Fail);
+        do {
+            Fail = false;
+            PollTimeOut = GetIntInput("What shoudl the timeout be?", true, false, false);
+        } while (Fail);
 
 
-        Xeon::WebServer MyWebServer(Backlog, Buffer, threads, false, false);
+        Xeon::WebServer MyWebServer(Backlog, Buffer, Threads, false);
+        if (AdditionalLogging) {
+            MyWebServer.ToggleDebug();
+        }
+        MyWebServer.SetPollTimeout(PollTimeOut);
 
         //Xeon::LocalServer MyLocalServer(Backlog, Buffer, true, true);
         std::thread server_thread(runserver, &MyWebServer);
         Sleep(100);
         while (MyWebServer.IsRunning()) {
-            cout << "What would you like to do?" << endl;
-            cout << "1 - Stop Server" << endl;
-            cout << "2 - Restart Server" << endl;
-            cin >> input;
-            if (input == "1") {
+            MyBase.Display("What would you like to do?");
+            MyBase.Display("1 - Stop Server");
+            MyBase.Display("2 - Restart Server");
+            MyBase.Display("");
+            cin >> Input;
+            if (Input == "1") {
                 MyWebServer.Stop();
                 break;
             }
-            else if (input == "2") {
+            else if (Input == "2") {
                 MyWebServer.Stop();
                 MyWebServer.Start();
-                input = "";
+                Input = "";
             }
             system("cls");
         }
