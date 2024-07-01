@@ -19,11 +19,12 @@ namespace Xeon {
     enum DataTypes
     {
         HTML = 0,
-        JPEG = 1
+        JPEG = 1,
+        PNG = 2
     };
 #pragma endregion
 #pragma region Base
-    static const string SERVER_VERSION = "Xeon/0.3.1 (Win64)";
+    static const string SERVER_VERSION = "Xeon/0.0.1 (Win64)";
     class Xeon_Base;
     void Handle_Request(Xeon_Base*);
     class Xeon_Base {
@@ -302,12 +303,15 @@ namespace Xeon {
         string Line;
 
         string Path = "C:\\ServerFiles\\";
-        std::regex File_Extension_Regex("^[^\s]+\.(html|jpg)$");
-        std::regex File_Extension_jpg_Regex("^[^\s]+\.(jpg)$");
+        std::regex File_Extension_Regex("^[^\s]+\.(html|jpg|jpeg|png)$");
+        std::regex File_Extension_jpg_Regex("^[^\s]+\.(jpg|jpeg)$");
+        std::regex File_Extension_png_Regex("^[^\s]+\.(png)$");
+
 
         string Requested_File;
         vector<string> Filter;
         vector<string> Tokens = TokenizeString(Request, "\n", Filter);
+        //TODO: build a find for an ID for the session, if not found build one and redirect, maybe better for harness
         if (Tokens.size() > 0) {
             Tokens = TokenizeString(Tokens[0], " /", Filter);
             for (int i = 0; i < Tokens.size(); i++) {
@@ -318,6 +322,9 @@ namespace Xeon {
                 }
                 if (std::regex_search(compare, File_Extension_jpg_Regex)) {
                     DataTypeEnm = JPEG;
+                }
+                else if (std::regex_search(compare, File_Extension_png_Regex)) {
+                    DataTypeEnm = PNG;
                 }
             }
         }
@@ -360,6 +367,9 @@ namespace Xeon {
         }
         else if (DataTypeEnm == JPEG) {
             headers.append("image/jpeg");
+        }
+        else if (DataTypeEnm == PNG) {
+            headers.append("image/png");
         }
         else {
             ErrorAndDie(104, "Unknown content type");
@@ -499,7 +509,7 @@ namespace Xeon {
         int Threads = 0;
         bool Fail;
         char Next;
-        bool AdditionalLogging = false;
+        int AdditionalLogging = -1;
         int PollTimeOut = 30;
         //WebDoc::home();
         MyBase.Display("Welcome to the Xeon Set Up Wizard");
@@ -513,11 +523,15 @@ namespace Xeon {
         } while (Fail);
         do {
             Fail = false;
-            AdditionalLogging = GetBoolInput("Would you like additional logging?");
+            AdditionalLogging = GetIntInput("Would you like additional logging?\n1-Yes\n2-No", true, false, false);
+            if (AdditionalLogging > 2) {
+                MyBase.Display("Please enter 1-Yes\nor\n2-No"); 
+                Fail = true;
+            }
         } while (Fail);
         do {
             Fail = false;
-            PollTimeOut = GetIntInput("What shoudl the timeout be?", true, false, false);
+            PollTimeOut = GetIntInput("What should the timeout be in seconds?", true, false, false);
         } while (Fail);
 
 
