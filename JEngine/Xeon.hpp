@@ -12,7 +12,6 @@ One of these future abilities will be a dynamicly genreated HTML engine (maybe i
 */
 
 #include "Oxygen.hpp"
-//#include "curl/curl.h"
 
 namespace Xeon {
 #pragma region Enum
@@ -63,7 +62,7 @@ namespace Xeon {
         int Allowed_Backlog;
         int Buffer_Size;
         bool XDebug;
-        std::mutex ObjectLock;
+        CRITICAL_SECTION ObjectLock;
         int WorkerThreads;
         vector<std::thread> Workers;
         int PollTimeout;
@@ -229,11 +228,11 @@ namespace Xeon {
     }
     //Lock for object operations
     void Xeon_Base::Lock() {
-        ObjectLock.lock();
+        EnterCriticalSection(&ObjectLock);
     }
     //Unlock for object operations
     void Xeon_Base::Unlock() {
-        ObjectLock.unlock();
+        LeaveCriticalSection(&ObjectLock);
     }
     //print the input if the object is in debug mode
     void Xeon_Base::DebugMessage(string Message) {

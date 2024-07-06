@@ -20,7 +20,6 @@ This currently allows for the creation of an O2Socket object, which facilitiates
 #include <signal.h>
 #include <errno.h>
 #include <time.h>
-#include <mutex>
 #include "Hydrogen.hpp"
 
 using std::string;
@@ -83,6 +82,7 @@ namespace O2 {
     }
 #pragma endregion 
 
+#pragma region O2Socket
     typedef int O2SocketID;
     enum SocketState {
         Unknown = 0,
@@ -105,7 +105,7 @@ namespace O2 {
         WSADATA WSA_data;
         SOCKET ListenerSocket;
         std::unordered_map<O2SocketID, struct Connected_Socket> Connected_Sockets;
-        std::mutex ObjectLock;
+        CRITICAL_SECTION ObjectLock;
         char Socket_Error[64] = { 0 };
         int Socket_Error_Size = 64;
         int Socket_AF;
@@ -591,11 +591,11 @@ namespace O2 {
     }
     //Lock for object operations
     void O2Socket::Lock() {
-        ObjectLock.lock();
+        EnterCriticalSection(&ObjectLock);
     }
     //Unlock for object operations
     void O2Socket::Unlock() {
-        ObjectLock.unlock();
+        LeaveCriticalSection(&ObjectLock);
     }
     CONDITION_VARIABLE* O2Socket::GetCondition() {
         return Requests.GetCondition();
@@ -612,4 +612,27 @@ namespace O2 {
             return NULL;
         }
     }
+#pragma endregion
+
+#pragma region O2HTTPEngine
+    class HTTPEngine {
+    private:
+        string StatusOK;
+
+    public:
+        HTTPEngine();
+        ~HTTPEngine();
+        HTTPEngine(const HTTPEngine&);
+
+};
+    HTTPEngine::HTTPEngine() {
+        StatusOK = "";
+    }
+    HTTPEngine::~HTTPEngine() {
+
+    }
+    HTTPEngine::HTTPEngine(const HTTPEngine& src) {
+
+    }
+#pragma endregion
 }

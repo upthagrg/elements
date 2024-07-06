@@ -14,7 +14,6 @@ This is the root of architecture and will contatin things like data structures, 
 #include <fstream>
 #include <string>
 #include <algorithm>
-#include <map>
 #include <vector>
 #include <array>
 #include <memory>
@@ -24,12 +23,13 @@ This is the root of architecture and will contatin things like data structures, 
 #include <ctime>
 #include <time.h>
 #include <thread>
-#include <mutex>
 #include <regex>
+#include <limits>
+#include <map>
+#include <unordered_map>
 //#include "JSON.hpp"
 
 using std::string;
-using std::map;
 using std::vector;
 using std::to_string;
 using std::ifstream;
@@ -44,7 +44,7 @@ using std::transform;
 using std::getline;
 
 bool Architecture_Initialized = false;
-std::mutex ArchLock;
+CRITICAL_SECTION ArchLock;
 
 namespace Hydrogen {
 #pragma region Timer
@@ -95,7 +95,7 @@ namespace Hydrogen {
     private:
         std::unordered_map<int, string> UUIDs;
         std::unordered_map<int, Timer> Timers;
-        std::mutex ObjectLock;
+        CRITICAL_SECTION ObjectLock;
         CRITICAL_SECTION ScreenLock;
         
     public:
@@ -107,14 +107,17 @@ namespace Hydrogen {
         int GetNextID();
         int GetNextID(string);
         void Display(string);
+        int GenRandomInt(int, int);
+        float GenRandomFloat(float, float);
+        double GenRandomFloat(double, double);
     };
     HydrogenArchBase::HydrogenArchBase() {
         if (!Architecture_Initialized) {
-            ArchLock.lock();
+            EnterCriticalSection(&ArchLock);
             std::srand(time(NULL));
             InitializeCriticalSection(&ScreenLock);
             Architecture_Initialized = true;
-            ArchLock.unlock();
+            LeaveCriticalSection(&ArchLock);
         }
     }
     void HydrogenArchBase::StartTimer(int Timer) {
@@ -149,6 +152,10 @@ namespace Hydrogen {
         bool IDValid = false;
         do {
             NewID = rand();
+            if (INT_MAX > RAND_MAX) {
+                NewID = NewID << 16;
+                NewID = NewID + rand();
+            }
             if (UUIDs.find(NewID) == UUIDs.end() && NewID > 0) {
                 UUIDs[NewID] = IDType;
                 IDValid = true;
@@ -162,6 +169,32 @@ namespace Hydrogen {
         EnterCriticalSection(&ScreenLock);
         cout << Message << endl;
         LeaveCriticalSection(&ScreenLock);
+    }
+    int HydrogenArchBase::GenRandomInt(int min, int max) {
+        bool finish = false;
+        int rnum;
+        int rnum2;
+        int range;
+        if (min >= max) {
+            return 0;
+        }
+        range = (max + 1) - min;
+        rnum = rand();
+        //if ((RAND_MAX < INT_MAX) && max > RAND_MAX) {
+        //    rnum = rnum << 31;
+        //    rnum = abs(rnum);
+        //    rnum2 = rand();
+        //    rnum = rnum | rnum2;
+        //}
+        rnum = ((rnum % range) + min);
+        int ret = rnum;
+        return ret;
+    }
+    float HydrogenArchBase::GenRandomFloat(float min, float max) {
+        return 0.0;
+    }
+    double HydrogenArchBase::GenRandomFloat(double min, double max) {
+        return 0.0;
     }
 }
 
@@ -603,9 +636,7 @@ bin::~bin() {
 bin::bin(const bin& src) {
     length = src.length;
     data = new unsigned char[length];
-    for (int i = 0; i < length; i++) {
-        data[i] = src.data[i];
-    }
+    memcpy_s((void*)data, length, (void*)(src.data), length);
 }
 unsigned char& bin::operator[](int i) {
     if (i < 0 || i > length) {
@@ -616,30 +647,22 @@ unsigned char& bin::operator[](int i) {
 void bin::operator=(const bin& src) {
     length = src.length;
     data = new unsigned char[length];
-    for (int i = 0; i < length; i++) {
-        data[i] = src.data[i];
-    }
+    memcpy_s((void*)data, length, (void*)(src.data), length);
 }
 void bin::operator=(const string& src) {
     length = src.length();
     data = new unsigned char[length];
-    for (int i = 0; i < length; i++) {
-        data[i] = src[i];
-    }
+    memcpy_s((void*)data, length, (void*)(src.c_str()), length);
 }
 void bin::operator=(const char*& src) {
     length = strlen(src);
     data = new unsigned char[length];
-    for (int i = 0; i < length; i++) {
-        data[i] = src[i];
-    }
+    memcpy_s((void*)data, length, (void*)(src), length);
 }
 void bin::operator=(const unsigned char*& src) {
     length = strlen((char*)src);
     data = new unsigned char[length];
-    for (int i = 0; i < length; i++) {
-        data[i] = src[i];
-    }
+    memcpy_s((void*)data, length, (void*)(src), length);
 }
 unsigned char* bin::GetData() {
     return data;
@@ -650,30 +673,83 @@ int bin::GetLength() {
 void bin::SetData(unsigned char* src, int srclen) {
     length = srclen;
     data = new unsigned char[length];
-    for (int i = 0; i < length; i++) {
-        data[i] = src[i];
-    }
+    memcpy_s((void*)data, length, (void*)(src), length);
 }
 void bin::SetData(char* src, int srclen) {
     length = srclen;
     data = new unsigned char[length];
-    for (int i = 0; i < length; i++) {
-        data[i] = src[i];
-    }
+    memcpy_s((void*)data, length, (void*)(src), length);
 }
 void bin::SetData(const char* src, int srclen) {
     length = srclen;
     data = new unsigned char[length];
-    for (int i = 0; i < length; i++) {
-        data[i] = src[i];
-    }
+    memcpy_s((void*)data, length, (void*)(src), length);
 }
 void bin::SetData(string src) {
     length = src.length();
     data = new unsigned char[length];
-    for (int i = 0; i < length; i++) {
-        data[i] = src[i];
+    memcpy_s((void*)data, length, (void*)(src.c_str()), length);
+}
+
+class HFile {
+private:
+    FILE* File;
+    int FileSize = 0;
+    unsigned char* FileData;
+    string FileDataString;
+
+public:
+    HFile();
+    HFile(string);
+    ~HFile();
+    int Size();
+    unsigned char* Data();
+    string DataString();
+};
+HFile::HFile(){
+    File = NULL;
+    FileSize = 0;
+    FileData = NULL;
+}
+HFile::HFile(string Requested_File) {
+    int BytesRead = 0;
+    File = fopen(Requested_File.c_str(), "rb");
+    if (!File) {
+        ErrorAndDie(404, "file not found");
     }
+    fseek(File, 0, SEEK_END);
+    FileSize = ftell(File);
+    fseek(File, 0, SEEK_SET);
+
+    FileData = new unsigned char[FileSize];
+    memset(FileData, '\0', FileSize);
+    do {
+        BytesRead = fread(FileData, 1, FileSize, File);
+    } while (BytesRead > 0);
+
+    fclose(File);
+
+    ifstream inputFile(Requested_File.c_str());
+    if (!inputFile.is_open()) {
+        ErrorAndDie(404, "file not found");
+    }
+    string line;
+    while (std::getline(inputFile, line)) {
+        FileDataString.append(line);
+    }
+    inputFile.close();
+}
+HFile::~HFile() {
+    delete[] FileData;
+}
+int HFile::Size() {
+    return FileSize;
+}
+unsigned char* HFile::Data() {
+    return FileData;
+}
+string HFile::DataString() {
+    return FileDataString;
 }
 #pragma endregion
 
