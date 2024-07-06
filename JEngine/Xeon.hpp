@@ -156,7 +156,7 @@ namespace Xeon {
         while (Run) {
             if (WorkerThreads > 0) {
                 //Add request to the queue
-                Server_Socket->Select(PollTimeout, &Run);
+                Server_Socket->GetReadyRequests(PollTimeout, &Run);
                 //TODO: if no maintenance thread, run maintenance
             }
             else {
@@ -262,25 +262,30 @@ namespace Xeon {
 
     //non-member function for a worker thread to process member data
     void Handle_Request(Xeon_Base* b) {
-        O2::O2SocketID* ID = NULL;
+        O2::O2SocketID* ID;
         string IncomingMessage;
         char* IncommingMessageCstr;
+        DWORD timeout(100);
         while (b->IsStarted()) {
+            ID = NULL;
             //limit queue poll to 100 times a second
-            Sleep(10);
-            ID = b->GetNextRequest();
-            if (ID != NULL) {
-                IncommingMessageCstr = NULL;
-                //IncommingMessageCstr = b->Recieve((*ID));
-                IncommingMessageCstr = b->GetSocketMessage(*ID);
-                if (IncommingMessageCstr != NULL) {
-                    IncomingMessage.append(IncommingMessageCstr);
-                    b->SendResponse((*ID), IncomingMessage);
-                    IncomingMessage = "";
-                }
-                //Dequeued ID, delete the data holding ID on the heap
-                delete ID;
+            //Sleep(10);
+            EnterCriticalSection(b->GetLock());
+            while (ID == NULL) {
+                ID = b->GetNextRequest();
+                
+                SleepConditionVariableCS(b->GetCondition(), b->GetLock(), timeout);
             }
+            IncommingMessageCstr = NULL;
+            IncommingMessageCstr = b->GetSocketMessage(*ID);
+            if (IncommingMessageCstr != NULL) {
+                IncomingMessage.append(IncommingMessageCstr);
+                b->SendResponse((*ID), IncomingMessage);
+                IncomingMessage = "";
+            }
+            //Dequeued ID, delete the data holding ID on the heap
+            delete ID;
+            LeaveCriticalSection(b->GetLock());
         }
     }
 #pragma endregion
@@ -512,7 +517,6 @@ namespace Xeon {
         char Next;
         int AdditionalLogging = -1;
         int PollTimeOut = 30;
-        //WebDoc::home();
         MyBase.Display("Welcome to the Xeon Set Up Wizard");
         do {
             Fail = false;
@@ -542,7 +546,6 @@ namespace Xeon {
         }
         MyWebServer.SetPollTimeout(PollTimeOut);
 
-        //Xeon::LocalServer MyLocalServer(Backlog, Buffer, true, true);
         std::thread server_thread(runserver, &MyWebServer);
         Sleep(100);
         while (MyWebServer.IsRunning()) {

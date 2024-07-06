@@ -136,7 +136,7 @@ namespace O2 {
         O2SocketID AcceptNewConnection();
         char* Recieve(O2SocketID);
         O2SocketID* GetNextRequest();
-        void Select(int, bool*);
+        void GetReadyRequests(int, bool*);
         void Send(O2SocketID, O2Data);
         void CloseConnectedSocket(O2SocketID);
         void CloseConnectedSockets();
@@ -300,14 +300,14 @@ namespace O2 {
     }
 
     //Select wrapper, returns false if timeout. Errors internally if there was an error from select. 
-    void O2Socket::Select(int timeout, bool* extern_run) {
+    void O2Socket::GetReadyRequests(int timeout, bool* extern_run) {
         int ret;
         bool recieve;
         string Message;
         O2SocketID newid;
         O2SocketID* q;
         if (O2Debug) {
-            MyBase.Display("Started select");
+            MyBase.Display("Started GetReadyRequests");
             Message.append("Listener Socket is ");
             Message.append(to_string(ListenerSocket));
             MyBase.Display(Message);
@@ -366,7 +366,7 @@ namespace O2 {
                         //Reduce the number of descriptors to check by 1
                         desc_ready -= 1;
                         //This is the listener socket, that means we have new connections to accept
-                        if (i == ListenerSocket){
+                        if (i == ListenerSocket) {
                             if (O2Debug) {
                                 Message.append("New Connection to accept on ");
                                 Message.append(to_string(i));
@@ -407,7 +407,7 @@ namespace O2 {
                                 char* enqueueing = Recieve(i);
                                 recieve = false;
                                 //If NULL, stop loop and do not enqueue the socket
-                                if (enqueueing == NULL){
+                                if (enqueueing == NULL) {
                                     break;
                                 }
                                 else {
@@ -420,10 +420,13 @@ namespace O2 {
                         }
                     }
                 }
+                //Signal a worker thread
+                Requests.Signal(false);
+                //for (int i = 0; i < Requests.GetSize(); i++) {
+                //    Requests.Signal(false);
+                //}
                 //Unlock Requests
                 Requests.Unlock();
-                //Signal a worker thread
-                //Requests.Signal(false);
             }
         } while (!EndServer && *extern_run);
     }

@@ -364,6 +364,7 @@ public:
     CRITICAL_SECTION* GetLock();
     void Sleep();
     void Wake(bool);
+    void Signal(bool);
 };
 QUEUE::QUEUE() {
     First = NULL;
@@ -448,6 +449,14 @@ void QUEUE::Lock() {
 
 void QUEUE::Unlock() {
     LeaveCriticalSection(&QLock);
+}
+void QUEUE::Signal(bool all) {
+    if (all) {
+        WakeAllConditionVariable(&QConVar);
+    }
+    else {
+        WakeConditionVariable(&QConVar);
+    }
 }
 void QUEUE::Sleep() {
     SleepConditionVariableCS(&QConVar, &QLock, INFINITE);
