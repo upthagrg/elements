@@ -113,9 +113,11 @@ namespace Hydrogen {
     };
     HydrogenArchBase::HydrogenArchBase() {
         if (!Architecture_Initialized) {
+            InitializeCriticalSection(&ArchLock);
             EnterCriticalSection(&ArchLock);
-            std::srand(time(NULL));
             InitializeCriticalSection(&ScreenLock);
+            InitializeCriticalSection(&ObjectLock);
+            std::srand(time(NULL));
             Architecture_Initialized = true;
             LeaveCriticalSection(&ArchLock);
         }

@@ -6,7 +6,6 @@
 //*/
 
 #include "Xeon.hpp"
-//#include "Hydrogen.hpp"
 
 int main() {
     Xeon::XeonSetupWizard();

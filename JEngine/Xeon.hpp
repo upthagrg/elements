@@ -69,6 +69,7 @@ namespace Xeon {
     };
     //Default constructor of Xeon_Base objects, this would be an unusable object in this state
     Xeon_Base::Xeon_Base() {
+        InitializeCriticalSection(&ObjectLock);
         Run = false;
         Running = false;
         OpenToLANAddress = false;
@@ -84,6 +85,7 @@ namespace Xeon {
     }
     //Constructor of a usable Xeon_Base object
     Xeon_Base::Xeon_Base(string lanaddress, string addr, int port, int allowed_backlog, int buffer_size, int workerthreads) {
+        InitializeCriticalSection(&ObjectLock);
         Run = true;
         Running = false;
         LAN_Address = lanaddress;
@@ -535,7 +537,7 @@ namespace Xeon {
 
 
         Xeon::WebServer MyWebServer(Backlog, Buffer, Threads, false);
-        if (AdditionalLogging) {
+        if (AdditionalLogging == 1) {
             MyWebServer.ToggleDebug();
         }
         MyWebServer.SetPollTimeout(PollTimeOut);

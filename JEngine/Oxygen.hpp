@@ -150,6 +150,7 @@ namespace O2 {
     };
     //Default constructor of am O2Socket object. The object is unusable in this state
     O2Socket::O2Socket() : HydrogenArchBase() {
+        InitializeCriticalSection(&ObjectLock);
         O2Debug = false;
         Socket_Addr_In_Size = -1;
         Allowed_Backlog = -1;
@@ -165,6 +166,7 @@ namespace O2 {
     }
     //Constructor of a usable O2Socket object
     O2Socket::O2Socket(WORD WSAVersion, int Address_Family, int Type, int Protocol, int Read_Buffer_Size, bool Blocking) : HydrogenArchBase() {
+        InitializeCriticalSection(&ObjectLock);
         O2Debug = false;
         Socket_Addr_In_Size = 0;
         Allowed_Backlog = 0;
