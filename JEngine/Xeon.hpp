@@ -19,7 +19,8 @@ namespace Xeon {
     {
         HTML = 0,
         JPEG = 1,
-        PNG = 2
+        PNG = 2,
+        ICO = 3
     };
 #pragma endregion
 #pragma region Base
@@ -284,6 +285,7 @@ namespace Xeon {
                 IncomingMessage = "";
             }
             //Dequeued ID, delete the data holding ID on the heap
+            MyBase.DeletePointer((void*)ID);
             delete ID;
             LeaveCriticalSection(b->GetLock());
         }
@@ -309,9 +311,11 @@ namespace Xeon {
         string Line;
 
         string Path = "C:\\ServerFiles\\";
-        std::regex File_Extension_Regex("^[^\s]+\.(html|jpg|jpeg|png)$");
+        std::regex File_Extension_Regex("^[^\s]+\.(html|jpg|jpeg|png|ico)$");
         std::regex File_Extension_jpg_Regex("^[^\s]+\.(jpg|jpeg)$");
         std::regex File_Extension_png_Regex("^[^\s]+\.(png)$");
+        std::regex File_Extension_ico_Regex("^[^\s]+\.(ico)$");
+
 
 
         string Requested_File;
@@ -331,6 +335,9 @@ namespace Xeon {
                 }
                 else if (std::regex_search(compare, File_Extension_png_Regex)) {
                     DataTypeEnm = PNG;
+                }
+                else if (std::regex_search(compare, File_Extension_ico_Regex)) {
+                    DataTypeEnm = ICO;
                 }
             }
         }
@@ -362,6 +369,7 @@ namespace Xeon {
             }
         }
         headers.append(TimeString);
+        delete[] TimeString;
         headers.append("GMT\n");
         //Add Server Info
         headers.append("Server: ");
@@ -377,39 +385,45 @@ namespace Xeon {
         else if (DataTypeEnm == PNG) {
             headers.append("image/png");
         }
+        else if (DataTypeEnm == ICO) {
+            headers.append("image/vnd.microsoft.icon");
+        }
         else {
             ErrorAndDie(104, "Unknown content type");
         }
 
         //Get Content from file
+        O2::O2Data Response;
         FILE* File;
         int FileSize = 0;
         File = fopen(Requested_File.c_str(), "rb");
         if (!File) {
             ErrorAndDie(404, "file not found");
         }
-        fseek(File, 0, SEEK_END);
-        FileSize = ftell(File);
-        fseek(File, 0, SEEK_SET);
+        else {
+            fseek(File, 0, SEEK_END);
+            FileSize = ftell(File);
+            fseek(File, 0, SEEK_SET);
 
-        headers.append("\nContent-Length: ");
-        headers.append(to_string(FileSize));
-        headers.append("\nConnection: close");
-        headers.append("\n\n");
+            headers.append("\nContent-Length: ");
+            headers.append(to_string(FileSize));
+            headers.append("\nConnection: close");
+            headers.append("\n\n");
 
-        O2::O2Data Response;
-        Response.AddData(headers); //Add the HTTP Headers to the response
-        char* FileData = new char[FileSize];
-        memset(FileData, '\0', FileSize);
+            Response.AddData(headers); //Add the HTTP Headers to the response
+            char* FileData = new char[FileSize]; //TODO: this might be the memeory leak
+            memset(FileData, '\0', FileSize);
 
-        int BytesRead = 0;
-        do {
-            BytesRead = fread(FileData, 1, FileSize, File);
-        } while (BytesRead > 0);
-        fclose(File);
+            int BytesRead = 0;
+            do {
+                BytesRead = fread(FileData, 1, FileSize, File);
+            } while (BytesRead > 0);
+            fclose(File);
 
-        Content.SetData(FileData, FileSize); //Convert Image data to binary
-        Response.AddData(Content);//Add the binary content to the reponse
+            Content.SetData(FileData, FileSize); //Convert Image data to binary
+            delete[] FileData;
+            Response.AddData(Content);//Add the binary content to the reponse
+        }
 
         O2::O2Data FinalResponse = Response;
         return FinalResponse;
@@ -421,7 +435,7 @@ namespace Xeon {
         LocalServer(int, int, int, bool);
     };
 
-    LocalServer::LocalServer() : Server_Base("", "127.0.0.1", 8080, 20, KB(32), 0) {}
+    LocalServer::LocalServer() : Server_Base("", "127.0.0.1", 8080, 20, MB(512), 0) {}
 
     LocalServer::LocalServer(int allowed_backlog, int buffer_size, int workerthreads, bool auto_start) : Server_Base("", "127.0.0.1", 8080, allowed_backlog, buffer_size, workerthreads) {
         if (auto_start) {
@@ -435,7 +449,7 @@ namespace Xeon {
         WebServer(int, int, int, bool);
     };
 
-    WebServer::WebServer() : Server_Base(GetIP(), "0.0.0.0", 80, 20, KB(32), 0) {}
+    WebServer::WebServer() : Server_Base(GetIP(), "0.0.0.0", 80, 20, MB(512), 0) {}
 
     WebServer::WebServer(int allowed_backlog, int buffer_size, int workerthreads, bool auto_start) : Server_Base(GetIP(), "0.0.0.0", 80, allowed_backlog, buffer_size, workerthreads) {
         if (auto_start) {
@@ -552,18 +566,23 @@ namespace Xeon {
             MyBase.Display("What would you like to do?");
             MyBase.Display("1 - Stop Server");
             MyBase.Display("2 - Restart Server");
+            MyBase.Display("3 - Analyze Memory");
             MyBase.Display("");
             cin >> Input;
             if (Input == "1") {
                 MyWebServer.Stop();
+                system("cls");
                 break;
             }
             else if (Input == "2") {
                 MyWebServer.Stop();
                 MyWebServer.Start();
                 Input = "";
+                system("cls");
             }
-            system("cls");
+            else if (Input == "3") {
+                MyBase.PrintPointers();
+            }
         }
         while (MyWebServer.IsRunning()) {
             Sleep(10);

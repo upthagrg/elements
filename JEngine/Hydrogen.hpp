@@ -7,9 +7,6 @@ Description: This header file contains the most basic building blocks for the El
 This is the root of architecture and will contatin things like data structures, algorythms, helper functions, etc.
 */
 
-#pragma comment(lib, "ws2_32.lib")
-#include <WinSock.h>
-#include <ws2tcpip.h>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -27,7 +24,6 @@ This is the root of architecture and will contatin things like data structures, 
 #include <limits>
 #include <map>
 #include <unordered_map>
-//#include "JSON.hpp"
 
 using std::string;
 using std::vector;
@@ -95,6 +91,7 @@ namespace Hydrogen {
     private:
         std::unordered_map<int, string> UUIDs;
         std::unordered_map<int, Timer> Timers;
+        std::unordered_map<void*, string> Pointers;
         CRITICAL_SECTION ObjectLock;
         CRITICAL_SECTION ScreenLock;
         
@@ -110,6 +107,9 @@ namespace Hydrogen {
         int GenRandomInt(int, int);
         float GenRandomFloat(float, float);
         double GenRandomFloat(double, double);
+        void AddPointer(void*, string);
+        void DeletePointer(void*);
+        void PrintPointers();
     };
     HydrogenArchBase::HydrogenArchBase() {
         if (!Architecture_Initialized) {
@@ -182,12 +182,14 @@ namespace Hydrogen {
         }
         range = (max + 1) - min;
         rnum = rand();
-        //if ((RAND_MAX < INT_MAX) && max > RAND_MAX) {
-        //    rnum = rnum << 31;
-        //    rnum = abs(rnum);
-        //    rnum2 = rand();
-        //    rnum = rnum | rnum2;
-        //}
+        if ((RAND_MAX < INT_MAX) && max > RAND_MAX) {
+            rnum2 = GenRandomInt(0, 16);
+            if (rnum2 != 0) {
+                rnum = rnum << rnum2;
+                rnum2 = GenRandomInt(1, RAND_MAX);
+                rnum = rnum2 | rnum;
+            }
+        }
         rnum = ((rnum % range) + min);
         int ret = rnum;
         return ret;
@@ -197,6 +199,34 @@ namespace Hydrogen {
     }
     double HydrogenArchBase::GenRandomFloat(double min, double max) {
         return 0.0;
+    }
+    void HydrogenArchBase::AddPointer(void* ptr, string from) {
+        Pointers[ptr] = from;
+    }
+    void HydrogenArchBase::DeletePointer(void* ptr) {
+        if (Pointers.find(ptr) != Pointers.end()) {
+            Pointers.erase(ptr);
+        }
+    }
+    void HydrogenArchBase::PrintPointers() {
+        std::unordered_map<void*, string>::iterator it = Pointers.begin();
+        string msg;
+        uint64_t ptr;
+        if (Pointers.size() == 0) {
+            Display("All tracked pointers have been freed");
+        }
+        else {
+            while (it != Pointers.end()) {
+                msg = "";
+                msg.append("pointer ");
+                ptr = (uint64_t)(it->first);
+                msg.append(to_string(ptr));
+                msg.append(" was never freed, allocated by ");
+                msg.append(it->second);
+                Display(msg);
+                it++;
+            }
+        }
     }
 }
 
@@ -253,14 +283,21 @@ vector<string> TokenizeString(string input, const char* delim, vector<string> fi
     string token_string;
     int length = input.length() + 1;
     char* token;
+    char* freedata;
     char* next_token = new char[length];
     char* buffer = new char[length];
     char* arr_buffer = new char[length];
+
+    //MyBase.AddPointer((void*)next_token, "Hydrogen TokenizeString");
+    //MyBase.AddPointer((void*)buffer, "Hydrogen TokenizeString");
+    //MyBase.AddPointer((void*)arr_buffer, "Hydrogen TokenizeString");
+
     memset(next_token, '\0', length);
     memset(buffer, '\0', length);
     memset(arr_buffer, '\0', length);
     errno_t ret = strcpy_s(buffer, input.length() + 1, input.c_str());
     token = strtok_s(buffer, delim, &next_token);
+    freedata = token;
     bool remove;
     bool continue_tokenizing = true;
     vector<string> tokens;
@@ -288,6 +325,16 @@ vector<string> TokenizeString(string input, const char* delim, vector<string> fi
     }
     vector<string> newtokens;
     newtokens = tokens;
+
+    //MyBase.DeletePointer((void*)next_token);
+    //MyBase.DeletePointer((void*)buffer);
+    //MyBase.DeletePointer((void*)arr_buffer);
+    //TODO: Memory leak might be here
+
+    //delete[] next_token;
+    //delete[] buffer;
+    //delete[] arr_buffer;
+
     return newtokens;
 }
 //}
@@ -379,6 +426,7 @@ void QUEUE::Enqueue(void* in, bool lock) {
         this->Lock();
     }
     struct Node* ptr = new struct Node;
+    MyBase.AddPointer((void*)ptr, "Hydrogen QUEUE::Enqueue");
     //New Node's next is NUll
     ptr->Next = NULL;
     //New Node's previous is current last.
@@ -408,6 +456,7 @@ void* QUEUE::Dequeue() {
     //Lock the queue
     this->Lock();
     void* data = NULL;
+    void* ret;
     //Can only get data if there are Nodes
     if (First != NULL) {
         //Store the data off.
@@ -417,6 +466,7 @@ void* QUEUE::Dequeue() {
         //Move First pointer to the next Node.
         First = First->Next;
         //free the old first Node pointer
+        MyBase.DeletePointer((void*)ptr);
         delete ptr;
         //if first is now null, the queue is empty and las must also point to null since they pointed to the same Node before dequeue
         if (First == NULL) {
@@ -428,7 +478,8 @@ void* QUEUE::Dequeue() {
     //Unlock the queue
     this->Unlock();
     //Return the requested data.
-    return data;
+    ret = data;
+    return ret;
 }
 
 bool QUEUE::IsEmpty() {
@@ -518,6 +569,7 @@ void STACK::Stack(void* in, bool lock) {
         this->Lock();
     }
     struct Node* ptr = new struct Node;
+    MyBase.AddPointer((void*)ptr, "Hydrogen STACK::Stack");
     //New Node's next is NUll
     ptr->Next = NULL;
     //New Node's previous is current last.
@@ -547,6 +599,7 @@ void* STACK::Pop() {
     //Lock the queue
     this->Lock();
     void* data = NULL;
+    void* ret;
     //Can only get data if there are Nodes
     if (Last != NULL) {
         //Store the data off.
@@ -556,6 +609,7 @@ void* STACK::Pop() {
         //Move First pointer to the next Node.
         Last = Last->Prev;
         //free the old first Node pointer
+        MyBase.DeletePointer((void*)ptr);
         delete ptr;
         //if first is now null, the queue is empty and las must also point to null since they pointed to the same Node before dequeue
         if (Last == NULL) {
@@ -567,7 +621,8 @@ void* STACK::Pop() {
     //Unlock the queue
     this->Unlock();
     //Return the requested data.
-    return data;
+    ret = data;
+    return ret;
 }
 
 bool STACK::IsEmpty() {
@@ -642,11 +697,13 @@ bin::bin() {
     length = 0;
 }
 bin::~bin() {
+    MyBase.DeletePointer((void*)data);
     delete[] data;
 }
 bin::bin(const bin& src) {
     length = src.length;
     data = new unsigned char[length];
+    MyBase.AddPointer((void*)data, "Hydrogen bin::bin");
     memcpy_s((void*)data, length, (void*)(src.data), length);
 }
 unsigned char& bin::operator[](int i) {
@@ -657,22 +714,42 @@ unsigned char& bin::operator[](int i) {
 }
 void bin::operator=(const bin& src) {
     length = src.length;
+    if (data != NULL) {
+        MyBase.DeletePointer((void*)data);
+        delete[] data;
+    }
     data = new unsigned char[length];
+    MyBase.AddPointer((void*)data, "Hydrogen bin::=bin");
     memcpy_s((void*)data, length, (void*)(src.data), length);
 }
 void bin::operator=(const string& src) {
     length = src.length();
+    if (data != NULL) {
+        MyBase.DeletePointer((void*)data);
+        delete[] data;
+    }
     data = new unsigned char[length];
+    MyBase.AddPointer((void*)data, "Hydrogen bin::=string");
     memcpy_s((void*)data, length, (void*)(src.c_str()), length);
 }
 void bin::operator=(const char*& src) {
     length = strlen(src);
+    if (data != NULL) {
+        MyBase.DeletePointer((void*)data);
+        delete[] data;
+    }
     data = new unsigned char[length];
+    MyBase.AddPointer((void*)data, "Hydrogen bin::=char*");
     memcpy_s((void*)data, length, (void*)(src), length);
 }
 void bin::operator=(const unsigned char*& src) {
     length = strlen((char*)src);
+    if (data != NULL) {
+        MyBase.DeletePointer((void*)data);
+        delete[] data;
+    }
     data = new unsigned char[length];
+    MyBase.AddPointer((void*)data, "Hydrogen bin::=unsigned char*");
     memcpy_s((void*)data, length, (void*)(src), length);
 }
 unsigned char* bin::GetData() {
@@ -683,22 +760,41 @@ int bin::GetLength() {
 }
 void bin::SetData(unsigned char* src, int srclen) {
     length = srclen;
+    if (data != NULL) {
+        MyBase.DeletePointer((void*)data);
+        delete[] data;
+    }
     data = new unsigned char[length];
+    MyBase.AddPointer((void*)data, "Hydrogen bin::SetData unsigned char*");
     memcpy_s((void*)data, length, (void*)(src), length);
 }
 void bin::SetData(char* src, int srclen) {
     length = srclen;
+    if (data != NULL) {
+        MyBase.DeletePointer((void*)data);
+        delete[] data;
+    }
     data = new unsigned char[length];
     memcpy_s((void*)data, length, (void*)(src), length);
 }
 void bin::SetData(const char* src, int srclen) {
     length = srclen;
+    if (data != NULL) {
+        MyBase.DeletePointer((void*)data);
+        delete[] data;
+    }
     data = new unsigned char[length];
+    MyBase.AddPointer((void*)data, "Hydrogen bin::SetData char*");
     memcpy_s((void*)data, length, (void*)(src), length);
 }
 void bin::SetData(string src) {
     length = src.length();
+    if (data != NULL) {
+        MyBase.DeletePointer((void*)data);
+        delete[] data;
+    }
     data = new unsigned char[length];
+    MyBase.AddPointer((void*)data, "Hydrogen bin::SetData string");
     memcpy_s((void*)data, length, (void*)(src.c_str()), length);
 }
 
@@ -733,6 +829,7 @@ HFile::HFile(string Requested_File) {
     fseek(File, 0, SEEK_SET);
 
     FileData = new unsigned char[FileSize];
+    MyBase.AddPointer((void*)FileData, "Hydrogen HFile");
     memset(FileData, '\0', FileSize);
     do {
         BytesRead = fread(FileData, 1, FileSize, File);
@@ -751,6 +848,7 @@ HFile::HFile(string Requested_File) {
     inputFile.close();
 }
 HFile::~HFile() {
+    MyBase.DeletePointer((void*)FileData);
     delete[] FileData;
 }
 int HFile::Size() {
@@ -784,7 +882,8 @@ string GetIP() {
             }
         }
     }
-    return IP;
+    string ret = IP;
+    return ret;
 }
 #pragma region Data size functions
 //Get number of Bytes in a given number of KiloBytes

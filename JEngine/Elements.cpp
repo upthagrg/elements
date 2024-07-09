@@ -9,6 +9,14 @@
 
 int main() {
     Xeon::XeonSetupWizard();
+    //int* ptr;
+    //ptr = new int;
+    //*ptr = 5;
+    //MyBase.AddPointer((void*)ptr, "Main");
+    //MyBase.PrintPointers();
+    //MyBase.DeletePointer((void*)ptr);
+    //delete ptr;
+    //MyBase.PrintPointers();
     return 0;
 }
 

@@ -10,6 +10,7 @@ This currently allows for the creation of an O2Socket object, which facilitiates
 #pragma once
 #pragma comment(lib, "ws2_32.lib")
 #include <WinSock2.h>
+#include <ws2tcpip.h>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -52,7 +53,9 @@ namespace O2 {
         void AddData(string);
     };
     O2Data::O2Data() {}
-    O2Data::~O2Data() {}
+    O2Data::~O2Data() { 
+        data.clear(); 
+    }
     O2Data::O2Data(const O2Data& src) {
         for (int i = 0; i < src.data.size(); i++) {
             data.push_back(src.data[i]);
@@ -118,7 +121,6 @@ namespace O2 {
         string Socket_IPAddr;
         int Allowed_Backlog;
         int Buffer_Size;
-        char* Buffer;
         bool Is_Valid;
         bool EndServer;
         bool O2Debug;
@@ -159,7 +161,6 @@ namespace O2 {
         Socket_Type = -1;
         Socket_Protocol = -1;
         Buffer_Size = -1;
-        Buffer = NULL;
         Timeout.tv_sec = 0;
         Timeout.tv_usec = 0;
         Is_Valid = false;
@@ -175,7 +176,6 @@ namespace O2 {
         Socket_Type = Type;
         Socket_Protocol = Protocol;
         Buffer_Size = Read_Buffer_Size;
-        Buffer = new char[Read_Buffer_Size];
         ErrorCheck0((WSAStartup(MAKEWORD(2, 2), &WSA_data)), 1, "Failed WSAStartup");
         ListenerSocket = socket(Address_Family, Type, Protocol);
         if (ListenerSocket == INVALID_SOCKET) {
@@ -199,10 +199,6 @@ namespace O2 {
     }
     //O2Socket Destructor
     O2Socket::~O2Socket() {
-        //Delete internal buffer
-        if (Buffer != NULL) {
-            delete Buffer;
-        }
         if (Connected_Sockets.size() > 0) {
             for (int i = 0; i < Connected_Sockets.size(); i++) {
                 //delete every socket struct's buffer
@@ -352,7 +348,6 @@ namespace O2 {
                 if (O2Debug) {
                     MyBase.Display("select timed out");
                 }
-                //break;
             }
             else {
                 //Sucess
@@ -375,7 +370,7 @@ namespace O2 {
                             }
                             do {
                                 newid = AcceptNewConnection();
-                                if (newid < 0)
+                                if (newid <= 0)
                                 {
                                     int error = WSAGetLastError();
                                     if (error != WSAEWOULDBLOCK)
@@ -411,7 +406,9 @@ namespace O2 {
                                     break;
                                 }
                                 else {
+                                    //This is delted in the handle request after dequeue
                                     q = new O2SocketID;
+                                    MyBase.AddPointer((void*)q, "Oxygen O2Socket::GetReadyRequests");
                                     *q = i;
                                     Requests.Enqueue((void*)q, false);
                                     break;
@@ -422,10 +419,6 @@ namespace O2 {
                 }
                 //Signal a worker thread
                 Requests.Signal(false);
-                //for (int i = 0; i < Requests.GetSize(); i++) {
-                //    Requests.Signal(false);
-                //}
-                //Unlock Requests
                 Requests.Unlock();
             }
         } while (!EndServer && *extern_run);
@@ -442,17 +435,17 @@ namespace O2 {
         }
         //SOCKET New_Socket = accept(ListenerSocket, (SOCKADDR*)&Socket_Addr_In, &Socket_Addr_In_Size);
         SOCKET New_Socket = accept(ListenerSocket, NULL, NULL);
-        if (New_Socket < 0) {
+        if (New_Socket == INVALID_SOCKET ||New_Socket <= 0 || New_Socket > MAXGETHOSTSTRUCT) {
             //Most likely -1, indicating would block, and thus no new connections
             return New_Socket;
         }
         //Build the new Connected_Socket
         struct Connected_Socket NewConnectedSocket;
-        char* SBuff = new char[Buffer_Size];
         NewConnectedSocket.Created = time(NULL);
         NewConnectedSocket.LastAccessed = NewConnectedSocket.Created;
         NewConnectedSocket.Soc = New_Socket;
-        NewConnectedSocket.SocBuff = SBuff;
+        NewConnectedSocket.SocBuff = new char[MB(128)]; //This gets deleted with delete[] when the connection is closed
+        MyBase.AddPointer((void*)NewConnectedSocket.SocBuff, "Oxygen O2Socket::AcceptNewConnection");
         NewConnectedSocket.State = ReadyToRead;
         //Add the new Connected_Socket to Connected_Sockets map
         Connected_Sockets[New_Socket] = NewConnectedSocket;
@@ -542,7 +535,12 @@ namespace O2 {
             ErrorCheck0((closesocket(Connected_Sockets[ID].Soc)), 24, "Failed to close an open connection");
         }
         //free the socket buffer
+        MyBase.DeletePointer((void*)Connected_Sockets[ID].SocBuff);
+        MyBase.Display("Deleting a socket buffer");
+        uint64_t temp = (uint64_t)Connected_Sockets[ID].SocBuff;
+        MyBase.Display(to_string(temp));
         delete[] Connected_Sockets[ID].SocBuff;
+        MyBase.Display("Deleted");
         //remove record from the map of sockets
         Connected_Sockets.erase(ID);
         //remove from the Master set
