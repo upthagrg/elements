@@ -444,7 +444,7 @@ namespace O2 {
         NewConnectedSocket.Created = time(NULL);
         NewConnectedSocket.LastAccessed = NewConnectedSocket.Created;
         NewConnectedSocket.Soc = New_Socket;
-        NewConnectedSocket.SocBuff = new char[MB(128)]; //This gets deleted with delete[] when the connection is closed
+        NewConnectedSocket.SocBuff = new char[Buffer_Size]; //This gets deleted with delete[] when the connection is closed
         MyBase.AddPointer((void*)NewConnectedSocket.SocBuff, "Oxygen O2Socket::AcceptNewConnection");
         NewConnectedSocket.State = ReadyToRead;
         //Add the new Connected_Socket to Connected_Sockets map
@@ -618,24 +618,89 @@ namespace O2 {
 #pragma endregion
 
 #pragma region O2HTTPEngine
+    enum HTTPContentType
+    {
+        HTML = 0,
+        JPEG = 1,
+        PNG = 2,
+        ICO = 3
+    };
+
+    enum HTTPStatus
+    {
+        OK = 200,
+        NOTFOUND = 404
+    };
+
+    enum HTTPVersion
+    {
+        HTTP1 = 1,
+        HTTP11 = 11,
+        HTTP2 = 2
+    };
+
+    enum HTTPConnection
+    {
+        CLOSED = 1,
+        KEEPALIVE = 2
+    };
+
     class HTTPEngine {
     private:
+        HTTPVersion CurrentVersion;
+        string Version;
+        string ServerVersion;
+        HTTPStatus CurrentStatus;
         string StatusOK;
+        string StatusNOTFOUND;
+        HTTPContentType CurrentContentType;
+        uint64_t ContentLength;
+        HTTPConnection CurrentConnection;
+        std::regex File_Extension_Regex;
+        std::regex File_Extension_jpg_Regex;
+        std::regex File_Extension_png_Regex;
+        std::regex File_Extension_ico_Regex;
 
     public:
         HTTPEngine();
         ~HTTPEngine();
         HTTPEngine(const HTTPEngine&);
-
+        void SetHTTPVersion(HTTPVersion);
+        void SetServer(string);
+        void SetStatus(HTTPStatus);
+        void SetContentType(HTTPContentType);
+        bool SetContentType(string);
+        bool SetContentType(vector<string>);
+        void SetContentLength(uint64_t);
+        void SetConnection(HTTPConnection);
 };
     HTTPEngine::HTTPEngine() {
-        StatusOK = "";
+        CurrentVersion = HTTP11;
+        Version = "HTTP/1.1";
+        ServerVersion = "Unknown";
+        CurrentStatus = OK;
+        StatusOK = "200 OK\n";
+        StatusNOTFOUND = "404 Not Found\n";
+        CurrentContentType = HTML;
+        ContentLength = 0;
+        CurrentConnection = CLOSED;
+        File_Extension_Regex.assign("^[^\s]+\.(html|jpg|jpeg|png|ico)$");
+        File_Extension_jpg_Regex.assign("^[^\s]+\.(jpg|jpeg)$");
+        File_Extension_png_Regex.assign("^[^\s]+\.(png)$");
+        File_Extension_ico_Regex.assign("^[^\s]+\.(ico)$");
     }
     HTTPEngine::~HTTPEngine() {
 
     }
     HTTPEngine::HTTPEngine(const HTTPEngine& src) {
-
+        Version = src.Version;
+        ServerVersion = src.ServerVersion;
+        StatusOK = src.StatusOK;
+        StatusNOTFOUND = src.StatusNOTFOUND;
+        File_Extension_Regex = src.File_Extension_Regex;
+        File_Extension_jpg_Regex = src.File_Extension_jpg_Regex;
+        File_Extension_png_Regex = src.File_Extension_png_Regex;
+        File_Extension_ico_Regex = src.File_Extension_ico_Regex;
     }
 #pragma endregion
 }

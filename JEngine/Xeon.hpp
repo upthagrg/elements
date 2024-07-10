@@ -20,7 +20,8 @@ namespace Xeon {
         HTML = 0,
         JPEG = 1,
         PNG = 2,
-        ICO = 3
+        ICO = 3,
+        MP4 = 4
     };
 #pragma endregion
 #pragma region Base
@@ -311,10 +312,11 @@ namespace Xeon {
         string Line;
 
         string Path = "C:\\ServerFiles\\";
-        std::regex File_Extension_Regex("^[^\s]+\.(html|jpg|jpeg|png|ico)$");
+        std::regex File_Extension_Regex("^[^\s]+\.(html|jpg|jpeg|png|ico|mp4)$");
         std::regex File_Extension_jpg_Regex("^[^\s]+\.(jpg|jpeg)$");
         std::regex File_Extension_png_Regex("^[^\s]+\.(png)$");
         std::regex File_Extension_ico_Regex("^[^\s]+\.(ico)$");
+        std::regex File_Extension_mp4_Regex("^[^\s]+\.(mp4)$");
 
 
 
@@ -337,6 +339,9 @@ namespace Xeon {
                     DataTypeEnm = PNG;
                 }
                 else if (std::regex_search(compare, File_Extension_ico_Regex)) {
+                    DataTypeEnm = ICO;
+                }
+                else if (std::regex_search(compare, File_Extension_mp4_Regex)) {
                     DataTypeEnm = ICO;
                 }
             }
@@ -387,6 +392,9 @@ namespace Xeon {
         }
         else if (DataTypeEnm == ICO) {
             headers.append("image/vnd.microsoft.icon");
+        }
+        else if (DataTypeEnm == ICO) {
+            headers.append("video/mp4");
         }
         else {
             ErrorAndDie(104, "Unknown content type");
