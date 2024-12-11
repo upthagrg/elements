@@ -2,7 +2,7 @@
 /*
 File: Hydrogen.hpp
 Author: Glenn Upthagrove
-Last Updated: 01/20/2024
+Last Updated: 12/10/2024
 Description: This header file contains the most basic building blocks for the Elements framework.
 This is the root of architecture and will contatin things like data structures, algorythms, helper functions, etc.
 */
@@ -288,10 +288,6 @@ vector<string> TokenizeString(string input, const char* delim, vector<string> fi
     char* buffer = new char[length];
     char* arr_buffer = new char[length];
 
-    //MyBase.AddPointer((void*)next_token, "Hydrogen TokenizeString");
-    //MyBase.AddPointer((void*)buffer, "Hydrogen TokenizeString");
-    //MyBase.AddPointer((void*)arr_buffer, "Hydrogen TokenizeString");
-
     memset(next_token, '\0', length);
     memset(buffer, '\0', length);
     memset(arr_buffer, '\0', length);
@@ -325,15 +321,6 @@ vector<string> TokenizeString(string input, const char* delim, vector<string> fi
     }
     vector<string> newtokens;
     newtokens = tokens;
-
-    //MyBase.DeletePointer((void*)next_token);
-    //MyBase.DeletePointer((void*)buffer);
-    //MyBase.DeletePointer((void*)arr_buffer);
-    //TODO: Memory leak might be here
-
-    //delete[] next_token;
-    //delete[] buffer;
-    //delete[] arr_buffer;
 
     return newtokens;
 }
@@ -375,7 +362,6 @@ string Exec(const char* cmd) {
     std::unique_ptr<FILE, decltype(&_pclose)> pipe(_popen(cmd, "r"), _pclose);
     if (!pipe) {
         ErrorAndDie(1, "popen() failed!");
-        //throw std::runtime_error("popen() failed!");
     }
     while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
         result += buffer.data();
