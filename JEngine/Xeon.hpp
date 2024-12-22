@@ -14,6 +14,33 @@ One of these future abilities will be a dynamicly genreated HTML engine (maybe i
 #include "Oxygen.hpp"
 
 namespace Xeon {
+    vector<string> BuildIndex(string pPath) {
+        vector<string> files;
+
+        // This structure would distinguish a file from a
+        // directory
+        struct stat sb;
+
+        // Looping until all the items of the directory are
+        // exhausted
+        for (const auto& entry : std::filesystem::directory_iterator(pPath)) {
+
+            // Converting the path to const char * in the
+            // subsequent lines
+            std::filesystem::path outfilename = entry.path();
+            std::string outfilename_str = outfilename.string();
+            const char* file_full_path = outfilename_str.c_str();
+
+            string File = file_full_path;
+            File = File.substr(pPath.length(), File.length() - pPath.length());
+            if (!(stat(file_full_path, &sb) == 0 && !(sb.st_mode & S_IFDIR))) {
+                //is a directory
+                File.append("*");
+            }
+            files.push_back(File);
+        }
+        return files;
+}
 #pragma region Enum
     enum DataTypes
     {

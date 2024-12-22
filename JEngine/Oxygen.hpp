@@ -703,4 +703,106 @@ namespace O2 {
         File_Extension_ico_Regex = src.File_Extension_ico_Regex;
     }
 #pragma endregion
+
+#pragma region JSONObject
+    class JSONObject {
+    private:
+        const char ObjectStart = '{';
+        const char ObjectEnd = '}';
+        const char PropertyValueSeperator = ':';
+        const char Seperator = ',';
+        const char ArrayStart = '[';
+        const char ArrayEnd = ']';
+        const string NullValue = "null";
+        const string TokenDelims = ":,\"   \n";
+        std::unordered_map<string, string> Items;
+        bool AllowInvalid = false;
+    public:
+        JSONObject();
+        JSONObject(string);
+        JSONObject(string, bool);
+        JSONObject(JSONObject& obj);
+        ~JSONObject();
+        void Parse(string);
+
+    };
+    JSONObject::JSONObject() {}
+    JSONObject::JSONObject(string data) {
+        this->Parse(data);
+    }
+    JSONObject::JSONObject(string data, bool pAllowInvalid) {
+        AllowInvalid = pAllowInvalid;
+        this->Parse(data);
+    }
+    JSONObject::JSONObject(JSONObject& obj) {}
+    JSONObject::~JSONObject() {}
+
+    void JSONObject::Parse(string data) {
+        string workingdata = data;
+        //vector<string> Tokens;
+        vector<StringTokenWithIndex> Tokens2;
+        vector<string> Filter;
+        Tokens2 = TokenizeStringWithIndex(workingdata, TokenDelims.c_str(), Filter);
+        //Tokens = TokenizeString(data, TokenDelims.c_str(), Filter);
+        if (Tokens2.size() > 0) {
+            if (Tokens2[0].Token[0] == ObjectStart) {
+                int i = 1;
+                //Loop accross all Tokens
+                while (i < Tokens2.size()) {
+                    //look at the next item, if it isn't an object start or stop, this pair is a simple item value pair
+                    if (i + 1 < Tokens2.size()) {
+                        if ((Tokens2[i + 1].Token[0] != ObjectStart && Tokens2[i + 1].Token[0] != ObjectEnd)) {
+                            Items[Tokens2[i].Token] = Tokens2[i + 1].Token;
+                            i = i + 2;
+                        }
+                        //Object start detected, look for object end
+                        else if (Tokens2[i + 1].Token[0] == ObjectStart) {
+                            string SubObject;
+                            int ObjectStartsCount = 1;
+                            //the next Token is an object start, loop accross all tokens and their strings until the end is found. 
+                            cout << "Object start found at " << Tokens2[i + 1].Index << endl;
+                            for (int j = i + 2; j < Tokens2.size(); j++) {
+                                //loop accross the string
+                                for (int k = 0; k < Tokens2[j].Token.size(); k++) {
+                                    cout << "Checking: " << Tokens2[j].Token[k] << endl;
+                                    if (Tokens2[j].Token[k] == ObjectStart) {
+                                        ObjectStartsCount++;
+                                    }
+                                    else if (Tokens2[j].Token[k] == ObjectEnd) {
+                                        ObjectStartsCount--;
+                                    }
+
+                                    //End found
+                                    if (ObjectStartsCount == 0) {
+                                        cout << "end found at " << Tokens2[j].Index + k << endl;
+                                        SubObject = workingdata.substr(Tokens2[i + 1].Index, ((Tokens2[j].Index + k + 1) - (Tokens2[i + 1].Index)));
+                                        cout << "Object " << SubObject << endl;
+                                        Items[Tokens2[i].Token] = SubObject;
+                                        workingdata = workingdata.substr(Tokens2[j].Index + k + 1, workingdata.size() - (Tokens2[j].Index + k));
+                                        Tokens2 = Tokens2 = TokenizeStringWithIndex(workingdata, TokenDelims.c_str(), Filter);
+                                        i = 0;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else {
+                        break;
+                    }
+                }
+            }
+            else {
+                if (!AllowInvalid) {
+                    ErrorAndDie(1, "Invalid JSON Object");
+                }
+            }
+        }
+        else {
+            if (!AllowInvalid) {
+                ErrorAndDie(2, "Empty JSON Object");
+            }
+        }
+    }
+#pragma endregion
 }

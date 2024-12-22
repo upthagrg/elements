@@ -23,9 +23,6 @@
     <ClInclude Include="garbage.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="JSON.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Hydrogen.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>

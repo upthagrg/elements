@@ -8,7 +8,10 @@
 #include "Xeon.hpp"
 
 int main() {
-    Xeon::XeonSetupWizard();
+   /// Xeon::XeonSetupWizard();
+    string testJASON = "{\"name\":\"John\", \"age\":30, \"car\":null, \"obj\":{\"name2\":\"Adam\" \"Ob2\":{\"n3\":\"bill\"}}\"Sex\":M}";//TODO:filter out the ending } character(s)
+    O2::JSONObject myobj;
+    myobj.Parse(testJASON);
     return 0;
 }
 

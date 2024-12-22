@@ -24,6 +24,8 @@ This is the root of architecture and will contatin things like data structures, 
 #include <limits>
 #include <map>
 #include <unordered_map>
+#include <filesystem>
+#include <sys/stat.h>
 
 using std::string;
 using std::vector;
@@ -238,6 +240,9 @@ bool str_equals(string, char*);
 bool str_equals(char*, string);
 string to_upper(string);
 
+//Function definitions
+void ErrorAndDie(int, string);
+
 //Set of basic string functions{
 //Set of basic string comparison functions{
 //Compare string object to string object
@@ -323,6 +328,59 @@ vector<string> TokenizeString(string input, const char* delim, vector<string> fi
     newtokens = tokens;
 
     return newtokens;
+}
+//split a string on some set of delimiter charaters. The additional filter will remove any matching strings from the result vector. Include index of the original string
+struct StringTokenWithIndex {
+    string Token;
+    int Index;
+};
+bool CharacterIn(const char* Chars, char check) {
+    for (int i = 0; i < strlen(Chars); i++) {
+        if (Chars[i] == check) {
+            return true;
+        }
+    }
+    return false;
+}
+vector<StringTokenWithIndex> TokenizeStringWithIndex(string input, const char* delim, vector<string> filter) {
+    bool Done = false;
+    StringTokenWithIndex Item;
+    vector<StringTokenWithIndex> ReturnSet;
+    if (filter.size() != 0) {
+        ErrorAndDie(1, "Filter not yet supported");
+    }
+    int it = 0;
+    while (!Done) {
+        for (int i = it; i < input.size(); i++) {
+            //if not in delim, add character to the current token
+            if (!CharacterIn(delim, input[i])) {
+                Item.Token.push_back(input[i]);
+                if (i + 1 >= input.size()) {
+                    Item.Index = it;
+                    if (Item.Token != "") {
+                        ReturnSet.push_back(Item);
+                    }
+                    Done = true;
+                }
+            }
+            //if in delim, end token
+            else {
+                Item.Index = it;
+                if (Item.Token != "") {
+                    ReturnSet.push_back(Item);
+                }
+                if (i + 1 <= input.length()) {
+                    it = i + 1;
+                    Item.Token = "";
+                }
+                else {
+                    Done = true;
+                }
+            }
+        }
+    }
+    vector<StringTokenWithIndex> FinalReturnSet = ReturnSet;
+    return FinalReturnSet;
 }
 //}
 
