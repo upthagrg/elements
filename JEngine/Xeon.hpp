@@ -455,7 +455,7 @@ namespace Xeon {
             } while (BytesRead > 0);
             fclose(File);
 
-            Content.SetData(FileData, FileSize); //Convert Image data to binary
+            Content.SetData(FileData, FileSize); //Convert data to binary
             delete[] FileData;
             Response.AddData(Content);//Add the binary content to the reponse
         }

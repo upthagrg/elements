@@ -89,6 +89,7 @@ namespace Hydrogen {
         LeaveCriticalSection(&TimerLock);
     }
 #pragma endregion
+#pragma region HydrogenArchBase
     class HydrogenArchBase {
     private:
         std::unordered_map<int, string> UUIDs;
@@ -106,6 +107,7 @@ namespace Hydrogen {
         int GetNextID();
         int GetNextID(string);
         void Display(string);
+        void Display(unsigned char *);
         int GenRandomInt(int, int);
         float GenRandomFloat(float, float);
         double GenRandomFloat(double, double);
@@ -174,6 +176,11 @@ namespace Hydrogen {
         cout << Message << endl;
         LeaveCriticalSection(&ScreenLock);
     }
+    void HydrogenArchBase::Display(unsigned char* Message) {
+        EnterCriticalSection(&ScreenLock);
+        cout << Message << endl;
+        LeaveCriticalSection(&ScreenLock);
+    }
     int HydrogenArchBase::GenRandomInt(int min, int max) {
         bool finish = false;
         int rnum;
@@ -233,6 +240,7 @@ namespace Hydrogen {
 }
 
 Hydrogen::HydrogenArchBase MyBase;
+#pragma endregion
 
 bool str_equals(string, string);
 bool str_equals(char*, char*);
@@ -844,6 +852,7 @@ void bin::SetData(string src) {
 
 class HFile {
 private:
+    string Path;
     FILE* File;
     int FileSize = 0;
     unsigned char* FileData;
@@ -853,6 +862,7 @@ public:
     HFile();
     HFile(string);
     ~HFile();
+    HFile(const HFile&);
     int Size();
     unsigned char* Data();
     string DataString();
@@ -863,13 +873,14 @@ HFile::HFile(){
     FileData = NULL;
 }
 HFile::HFile(string Requested_File) {
+    Path = Requested_File;
     int BytesRead = 0;
     File = fopen(Requested_File.c_str(), "rb");
     if (!File) {
         ErrorAndDie(404, "file not found");
     }
     fseek(File, 0, SEEK_END);
-    FileSize = ftell(File);
+    FileSize = ftell(File) + 1; //the +1 is good for text, may be an issue for binary
     fseek(File, 0, SEEK_SET);
 
     FileData = new unsigned char[FileSize];
@@ -890,6 +901,17 @@ HFile::HFile(string Requested_File) {
         FileDataString.append(line);
     }
     inputFile.close();
+}
+HFile::HFile(const HFile& Data) {
+    Path = Data.Path;
+    FileSize = Data.FileSize;
+    FileData = new unsigned char[FileSize];
+    MyBase.AddPointer((void*)FileData, "Hydrogen HFile Copy Constructor");
+    memset(FileData, '\0', FileSize);
+    for (int i = 0; i < FileSize; i++) {
+        FileData[i] = Data.FileData[i];
+    }
+    FileDataString = Data.FileDataString;
 }
 HFile::~HFile() {
     MyBase.DeletePointer((void*)FileData);

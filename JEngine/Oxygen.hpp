@@ -1,7 +1,7 @@
 /*
 File: Oxygen.hpp
 Author: Glenn Upthagrove
-Last Updated: 01/21/2024
+Last Updated: 02/18/2025
 Description: This header file contains the Oxygen networking library for the Elements application framework.
 This currently allows for the creation of an O2Socket object, which facilitiates inter-process and networked communication.
 */
@@ -716,70 +716,118 @@ namespace O2 {
         const string NullValue = "null";
         const string TokenDelims = ":,\"   \n";
         std::unordered_map<string, string> Items;
+        vector<string> ItemsList;
         bool AllowInvalid = false;
     public:
         JSONObject();
         JSONObject(string);
         JSONObject(string, bool);
-        JSONObject(JSONObject& obj);
+        JSONObject(const JSONObject&);
         ~JSONObject();
         void Parse(string);
-
+        void AddItem(string, string);
+        vector<string> GetItems();
+        string Stringify();
+        void PrintItems();
+        void PrintValues();
+        void Print();
+        string& operator[](string);
+        JSONObject operator=(const JSONObject&);
+        bool Find(string);
     };
+    //Default constructor
     JSONObject::JSONObject() {}
+    //Non-Default constructor
     JSONObject::JSONObject(string data) {
         this->Parse(data);
     }
+    //Default constructor
     JSONObject::JSONObject(string data, bool pAllowInvalid) {
         AllowInvalid = pAllowInvalid;
         this->Parse(data);
     }
-    JSONObject::JSONObject(JSONObject& obj) {}
+    //Copy constructor
+    JSONObject::JSONObject(const JSONObject& obj) {
+        Items = obj.Items;
+        ItemsList = obj.ItemsList;
+        AllowInvalid = obj.AllowInvalid;
+    }
+    //Destructor
     JSONObject::~JSONObject() {}
 
+    //Build new object from string
     void JSONObject::Parse(string data) {
         string workingdata = data;
         //vector<string> Tokens;
-        vector<StringTokenWithIndex> Tokens2;
+        vector<StringTokenWithIndex> Tokens;
         vector<string> Filter;
-        Tokens2 = TokenizeStringWithIndex(workingdata, TokenDelims.c_str(), Filter);
+        Items.clear();
+        ItemsList.clear();
+        Tokens = TokenizeStringWithIndex(workingdata, TokenDelims.c_str(), Filter);
         //Tokens = TokenizeString(data, TokenDelims.c_str(), Filter);
-        if (Tokens2.size() > 0) {
-            if (Tokens2[0].Token[0] == ObjectStart) {
+        if (Tokens.size() > 0) {
+            if (Tokens[0].Token[0] == ObjectStart) {
                 int i = 1;
                 //Loop accross all Tokens
-                while (i < Tokens2.size()) {
-                    //look at the next item, if it isn't an object start or stop, this pair is a simple item value pair
-                    if (i + 1 < Tokens2.size()) {
-                        if ((Tokens2[i + 1].Token[0] != ObjectStart && Tokens2[i + 1].Token[0] != ObjectEnd)) {
-                            Items[Tokens2[i].Token] = Tokens2[i + 1].Token;
+                while (i < Tokens.size()) {
+                    //look at the next item, if it isn't an object start or stop orelse an array start or stop, this pair is a simple item value pair
+                    if (i + 1 < Tokens.size()) {
+                        if ((Tokens[i + 1].Token[0] != ObjectStart && Tokens[i + 1].Token[0] != ObjectEnd && Tokens[i + 1].Token[0] != ArrayStart && Tokens[i + 1].Token[0] != ArrayEnd)) {
+                            //last end object character needs to be trimmed in some cases since it isnt a part of tokenizing
+                            if (Tokens[i + 1].Token[Tokens[i + 1].Token.size()-1] == ObjectEnd) {
+                                Tokens[i + 1].Token.pop_back();
+                            }
+                            AddItem(Tokens[i].Token, Tokens[i + 1].Token);
                             i = i + 2;
                         }
                         //Object start detected, look for object end
-                        else if (Tokens2[i + 1].Token[0] == ObjectStart) {
+                        else if (Tokens[i + 1].Token[0] == ObjectStart) {
                             string SubObject;
                             int ObjectStartsCount = 1;
                             //the next Token is an object start, loop accross all tokens and their strings until the end is found. 
-                            cout << "Object start found at " << Tokens2[i + 1].Index << endl;
-                            for (int j = i + 2; j < Tokens2.size(); j++) {
+                            for (int j = i + 2; j < Tokens.size(); j++) {
                                 //loop accross the string
-                                for (int k = 0; k < Tokens2[j].Token.size(); k++) {
-                                    cout << "Checking: " << Tokens2[j].Token[k] << endl;
-                                    if (Tokens2[j].Token[k] == ObjectStart) {
+                                for (int k = 0; k < Tokens[j].Token.size(); k++) {
+                                    if (Tokens[j].Token[k] == ObjectStart) {
                                         ObjectStartsCount++;
                                     }
-                                    else if (Tokens2[j].Token[k] == ObjectEnd) {
+                                    else if (Tokens[j].Token[k] == ObjectEnd) {
                                         ObjectStartsCount--;
                                     }
 
                                     //End found
                                     if (ObjectStartsCount == 0) {
-                                        cout << "end found at " << Tokens2[j].Index + k << endl;
-                                        SubObject = workingdata.substr(Tokens2[i + 1].Index, ((Tokens2[j].Index + k + 1) - (Tokens2[i + 1].Index)));
-                                        cout << "Object " << SubObject << endl;
-                                        Items[Tokens2[i].Token] = SubObject;
-                                        workingdata = workingdata.substr(Tokens2[j].Index + k + 1, workingdata.size() - (Tokens2[j].Index + k));
-                                        Tokens2 = Tokens2 = TokenizeStringWithIndex(workingdata, TokenDelims.c_str(), Filter);
+                                        SubObject = workingdata.substr(Tokens[i + 1].Index, ((Tokens[j].Index + k + 1) - (Tokens[i + 1].Index)));
+                                        AddItem(Tokens[i].Token, SubObject);
+                                        workingdata = workingdata.substr(Tokens[j].Index + k + 1, workingdata.size() - (Tokens[j].Index + k));
+                                        Tokens = TokenizeStringWithIndex(workingdata, TokenDelims.c_str(), Filter);
+                                        i = 0;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        //Array start detected, look for object end
+                        else if (Tokens[i + 1].Token[0] == ArrayStart) {
+                            string SubArray;
+                            int ArrayStartsCount = 1;
+                            //the next Token is an object start, loop accross all tokens and their strings until the end is found. 
+                            for (int j = i + 2; j < Tokens.size(); j++) {
+                                //loop accross the string
+                                for (int k = 0; k < Tokens[j].Token.size(); k++) {
+                                    if (Tokens[j].Token[k] == ArrayStart) {
+                                        ArrayStartsCount++;
+                                    }
+                                    else if (Tokens[j].Token[k] == ArrayEnd) {
+                                        ArrayStartsCount--;
+                                    }
+
+                                    //End found
+                                    if (ArrayStartsCount == 0) {
+                                        SubArray = workingdata.substr(Tokens[i + 1].Index, ((Tokens[j].Index + k + 1) - (Tokens[i + 1].Index)));
+                                        AddItem(Tokens[i].Token, SubArray);
+                                        workingdata = workingdata.substr(Tokens[j].Index + k + 1, workingdata.size() - (Tokens[j].Index + k));
+                                        Tokens = TokenizeStringWithIndex(workingdata, TokenDelims.c_str(), Filter);
                                         i = 0;
                                         break;
                                     }
@@ -804,5 +852,131 @@ namespace O2 {
             }
         }
     }
+    //Individual updates
+    void JSONObject::AddItem(string Item, string Value) {
+        Items[Item] = Value;
+        ItemsList.push_back(Item);
+    }
+    //Getters
+    vector<string> JSONObject::GetItems() {
+        return ItemsList;
+    }
+    string JSONObject::Stringify() {
+        std::unordered_map<string, string>::iterator It = Items.begin();
+        string JSONBuilder = "{";
+        while (It != Items.end()) {
+            JSONBuilder.append("\"");
+            JSONBuilder.append(It->first);
+            JSONBuilder.append("\"");
+            JSONBuilder.append(":");
+            if (It->second[0] == ObjectStart || It->second[0] == ArrayStart) {
+                JSONBuilder.append(It->second);
+            }
+            else {
+                JSONBuilder.append("\"");
+                JSONBuilder.append(It->second);
+                JSONBuilder.append("\"");
+            }
+            JSONBuilder.append(",");
+            It++;
+        }
+        if (JSONBuilder[JSONBuilder.size()-1] == ',') {
+            JSONBuilder[JSONBuilder.size()-1] = '}';
+        }
+        else {
+            JSONBuilder.append("}");
+        }
+        string FinalJSON = JSONBuilder;
+        return FinalJSON;
+    }
+    //Other operations
+    bool JSONObject::Find(string Item) {
+        bool Found = false;
+        for (int i = 0; i < ItemsList.size(); i++) {
+            if (ItemsList[i] == Item) {
+                Found = true;
+                break;
+            }
+        }
+        bool ret = Found;
+        return ret;
+    }
+    //Printers
+    void JSONObject::PrintItems() {
+        for (int i = 0; i < ItemsList.size(); i++) {
+            MyBase.Display(ItemsList[i]);
+        }
+    }
+    void JSONObject::PrintValues() {
+        std::unordered_map<string, string>::iterator It = Items.begin();
+        while (It != Items.end()) {
+            MyBase.Display(It->second);
+            It++;
+        }
+    }
+    void JSONObject::Print() {
+        std::unordered_map<string, string>::iterator It = Items.begin();
+        string Message;
+        while (It != Items.end()) {
+            Message = "";
+            Message.append(It->first);
+            Message.append(":");
+            Message.append(It->second);
+            MyBase.Display(Message);
+            It++;
+        }
+    }
+
+    //operators
+    string& JSONObject::operator[](string Item) {
+        if (!Find(Item)) {
+            ErrorAndDie(3, "Invalid Item Access");
+        }
+        return Items[Item];
+    }
+    JSONObject JSONObject::operator=(const JSONObject& obj) {
+        return JSONObject(obj);
+    }
+#pragma endregion
+
+#pragma region JSONFile
+    class JSONFile {
+    private:
+        JSONObject JSON;
+        string Path;
+        HFile File;
+    public:
+        JSONFile();
+        JSONFile(string);
+        JSONFile(string, bool);
+        JSONFile(JSONObject, string);
+        JSONFile(const JSONFile&);
+        ~JSONFile();
+    };
+    JSONFile::JSONFile() {}
+    JSONFile::JSONFile(string pFile) {
+        Path = pFile;
+        File = HFile(pFile);
+        JSON = JSONObject(File.DataString());
+    }
+    JSONFile::JSONFile(string pFile, bool AllowInvalid) {
+        Path = pFile;
+        File = HFile(pFile);
+        JSON = JSONObject(File.DataString(), AllowInvalid);
+    }
+    JSONFile::JSONFile(JSONObject Data, string pFile) {
+        Path = pFile;
+        File = HFile(pFile);
+        JSON = Data;
+    }
+    JSONFile::JSONFile(const JSONFile& Data) {
+        Path = Data.Path;
+        File = Data.File;
+        JSON = Data.JSON;
+    }
+#pragma endregion
+#pragma region JSONArray
+#pragma endregion
+#pragma region JSONArrayFile
 #pragma endregion
 }
