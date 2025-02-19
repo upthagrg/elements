@@ -852,6 +852,7 @@ void bin::SetData(string src) {
 
 class HFile {
 private:
+    bool Binary = false; //Treated as text file by default
     string Path;
     FILE* File;
     int FileSize = 0;
@@ -861,6 +862,7 @@ private:
 public:
     HFile();
     HFile(string);
+    HFile(string, bool);
     ~HFile();
     HFile(const HFile&);
     int Size();
@@ -872,6 +874,43 @@ HFile::HFile(){
     FileSize = 0;
     FileData = NULL;
 }
+HFile::HFile(string Requested_File, bool IsBinary) {
+    Binary = IsBinary;
+    Path = Requested_File;
+    int BytesRead = 0;
+    File = fopen(Requested_File.c_str(), "rb");
+    if (!File) {
+        ErrorAndDie(404, "file not found");
+    }
+    fseek(File, 0, SEEK_END);
+    if (Binary) {
+        FileSize = ftell(File);
+    }
+    else {
+        FileSize = ftell(File) + 1; //the +1 is good for text, may be an issue for binary
+    }
+    fseek(File, 0, SEEK_SET);
+
+    FileData = new unsigned char[FileSize];
+    MyBase.AddPointer((void*)FileData, "Hydrogen HFile");
+    memset(FileData, '\0', FileSize);
+    do {
+        BytesRead = fread(FileData, 1, FileSize, File);
+    } while (BytesRead > 0);
+
+    fclose(File);
+
+    ifstream inputFile(Requested_File.c_str());
+    if (!inputFile.is_open()) {
+        ErrorAndDie(404, "file not found");
+    }
+    string line;
+    while (std::getline(inputFile, line)) {
+        FileDataString.append(line);
+    }
+    inputFile.close();
+}
+
 HFile::HFile(string Requested_File) {
     Path = Requested_File;
     int BytesRead = 0;
@@ -880,7 +919,12 @@ HFile::HFile(string Requested_File) {
         ErrorAndDie(404, "file not found");
     }
     fseek(File, 0, SEEK_END);
-    FileSize = ftell(File) + 1; //the +1 is good for text, may be an issue for binary
+    if (Binary) {
+        FileSize = ftell(File);
+    }
+    else {
+        FileSize = ftell(File) + 1; //the +1 is good for text, may be an issue for binary
+    }
     fseek(File, 0, SEEK_SET);
 
     FileData = new unsigned char[FileSize];
