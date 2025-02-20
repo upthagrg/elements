@@ -861,13 +861,20 @@ private:
 
 public:
     HFile();
-    HFile(string);
     HFile(string, bool);
+    HFile(string);
     ~HFile();
     HFile(const HFile&);
     int Size();
     unsigned char* Data();
     string DataString();
+    void Write(unsigned char*, int);
+    void Write(string);
+    void Write();
+    void SetPath(char*);
+    void SetPath(string);
+    void SetData(const char*, int);
+    void SetData(string);
 };
 HFile::HFile(){
     File = NULL;
@@ -969,6 +976,57 @@ unsigned char* HFile::Data() {
 }
 string HFile::DataString() {
     return FileDataString;
+}
+void HFile::Write(unsigned char* data, int size) {
+    int BytesWriten = 0;
+    File = fopen(Path.c_str(), "wb");
+    if (!File) {
+        ErrorAndDie(404, "file not found");
+    }
+
+    if (FileData != NULL) {
+        MyBase.DeletePointer((void*)FileData);
+        delete[] FileData;
+    }
+
+    FileSize = size;
+    FileData = new unsigned char[FileSize];
+    MyBase.AddPointer((void*)FileData, "Hydrogen HFile");
+    memset(FileData, '\0', FileSize);
+    do {
+        BytesWriten = fwrite(FileData, 1, FileSize, File);
+    } while (BytesWriten > 0);
+
+    fclose(File);
+    FileSize = BytesWriten;
+}
+void HFile::Write(string data) {
+    Write((unsigned char*)data.c_str(), data.size());
+}
+void HFile::Write() {
+    Write(FileData, FileSize);
+}
+void HFile::SetPath(char* NewFile) {
+    Path = NewFile;
+}
+void HFile::SetPath(string NewFile) {
+    Path = NewFile;
+}
+void HFile::SetData(const char* pData, int Size) {
+    FileSize = Size;
+    if (FileData != NULL) {
+        MyBase.DeletePointer((void*)FileData);
+        delete[] FileData;
+    }
+    FileData = new unsigned char[FileSize];
+    MyBase.AddPointer((void*)FileData, "Hydrogen HFile SetData");
+    memset(FileData, '\0', FileSize);
+    for (int i = 0; i < FileSize; i++) {
+        FileData[i] = pData[i];
+    }
+}
+void HFile::SetData(string pData) {
+    SetData(pData.c_str(), pData.size());
 }
 #pragma endregion
 
