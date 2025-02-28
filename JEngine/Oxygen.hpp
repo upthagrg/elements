@@ -717,11 +717,9 @@ namespace O2 {
         const string TokenDelims = ":,\"   \n";
         std::unordered_map<string, string> Items;
         vector<string> ItemsList;
-        bool AllowInvalid = false;
     public:
         JSONObject();
         JSONObject(string);
-        JSONObject(string, bool);
         JSONObject(const JSONObject&);
         ~JSONObject();
         void Parse(string);
@@ -735,7 +733,6 @@ namespace O2 {
         string& operator[](string);
         JSONObject operator=(const JSONObject&);
         bool Find(string);
-        void Allow_Invalid(bool);
     };
     //Default constructor
     JSONObject::JSONObject() {}
@@ -743,23 +740,13 @@ namespace O2 {
     JSONObject::JSONObject(string data) {
         this->Parse(data);
     }
-    //Default constructor
-    JSONObject::JSONObject(string data, bool pAllowInvalid) {
-        AllowInvalid = pAllowInvalid;
-        this->Parse(data);
-    }
     //Copy constructor
     JSONObject::JSONObject(const JSONObject& obj) {
         Items = obj.Items;
         ItemsList = obj.ItemsList;
-        AllowInvalid = obj.AllowInvalid;
     }
     //Destructor
     JSONObject::~JSONObject() {}
-
-    void JSONObject::Allow_Invalid(bool allow) {
-        AllowInvalid = allow;
-    }
 
     //Build new object from string
     void JSONObject::Parse(string data) {
@@ -847,15 +834,11 @@ namespace O2 {
                 }
             }
             else {
-                if (!AllowInvalid) {
                     ErrorAndDie(1, "Invalid JSON Object");
-                }
             }
         }
         else {
-            if (!AllowInvalid) {
                 ErrorAndDie(2, "Empty JSON Object");
-            }
         }
     }
     //Build new object from C string
@@ -958,7 +941,6 @@ namespace O2 {
     public:
         JSONFile();
         JSONFile(string);
-        JSONFile(string, bool);
         JSONFile(JSONObject, string);
         JSONFile(const JSONFile&);
         ~JSONFile();
@@ -974,12 +956,6 @@ namespace O2 {
     //Creates a JSONFile that reads from the given file
     JSONFile::JSONFile(string pFile) {
         File = HFile(pFile);
-        JSON.Parse(File.DataString());
-    }
-    //Creates a JSONFile that reads from the given file. Allows invalid data
-    JSONFile::JSONFile(string pFile, bool pAllowInvalid) {
-        File = HFile(pFile);
-        JSON.Allow_Invalid(pAllowInvalid);
         JSON.Parse(File.DataString());
     }
     //Creates a JSONFile with the given data and will use the given file, but does not read or write immediatly. 
