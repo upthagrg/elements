@@ -875,6 +875,7 @@ public:
     void SetPath(string);
     void SetData(const char*, int);
     void SetData(string);
+    string GetPath();
 };
 HFile::HFile(){
     File = NULL;
@@ -984,18 +985,20 @@ void HFile::Write(unsigned char* data, int size) {
         ErrorAndDie(404, "file not found");
     }
 
-    if (FileData != NULL) {
-        MyBase.DeletePointer((void*)FileData);
-        delete[] FileData;
-    }
+    //if (FileData != NULL) {
+    //    MyBase.DeletePointer((void*)FileData);
+    //    delete FileData;
+    //}
 
     FileSize = size;
     FileData = new unsigned char[FileSize];
     MyBase.AddPointer((void*)FileData, "Hydrogen HFile");
     memset(FileData, '\0', FileSize);
-    do {
-        BytesWriten = fwrite(FileData, 1, FileSize, File);
-    } while (BytesWriten > 0);
+    for (int i = 0; i < FileSize; i++) {
+        FileData[i] = data[i];
+    }
+
+    BytesWriten = fwrite(FileData, 1, FileSize, File);
 
     fclose(File);
     FileSize = BytesWriten;
@@ -1011,6 +1014,9 @@ void HFile::SetPath(char* NewFile) {
 }
 void HFile::SetPath(string NewFile) {
     Path = NewFile;
+}
+string HFile::GetPath() {
+    return Path;
 }
 void HFile::SetData(const char* pData, int Size) {
     FileSize = Size;

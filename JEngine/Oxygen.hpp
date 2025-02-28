@@ -725,6 +725,7 @@ namespace O2 {
         JSONObject(const JSONObject&);
         ~JSONObject();
         void Parse(string);
+        void Parse(char*);
         void AddItem(string, string);
         vector<string> GetItems();
         string Stringify();
@@ -734,6 +735,7 @@ namespace O2 {
         string& operator[](string);
         JSONObject operator=(const JSONObject&);
         bool Find(string);
+        void Allow_Invalid(bool);
     };
     //Default constructor
     JSONObject::JSONObject() {}
@@ -754,6 +756,10 @@ namespace O2 {
     }
     //Destructor
     JSONObject::~JSONObject() {}
+
+    void JSONObject::Allow_Invalid(bool allow) {
+        AllowInvalid = allow;
+    }
 
     //Build new object from string
     void JSONObject::Parse(string data) {
@@ -852,6 +858,11 @@ namespace O2 {
             }
         }
     }
+    //Build new object from C string
+    void JSONObject::Parse(char* Data) {
+        string tmp = Data;
+        Parse(tmp);
+    }
     //Individual updates
     void JSONObject::AddItem(string Item, string Value) {
         Items[Item] = Value;
@@ -943,7 +954,6 @@ namespace O2 {
     class JSONFile {
     private:
         JSONObject JSON;
-        string Path;
         HFile File;
     public:
         JSONFile();
@@ -952,27 +962,59 @@ namespace O2 {
         JSONFile(JSONObject, string);
         JSONFile(const JSONFile&);
         ~JSONFile();
+        string GetPath();
+        void SetJSON(JSONObject);
+        void SetJSON(string);
+        void SetJSON(char*);
+        void Write();
+        JSONObject GetJSON();
     };
+    //Creates a JSONFile
     JSONFile::JSONFile() {}
+    //Creates a JSONFile that reads from the given file
     JSONFile::JSONFile(string pFile) {
-        Path = pFile;
         File = HFile(pFile);
-        JSON = JSONObject(File.DataString());
+        JSON.Parse(File.DataString());
     }
-    JSONFile::JSONFile(string pFile, bool AllowInvalid) {
-        Path = pFile;
+    //Creates a JSONFile that reads from the given file. Allows invalid data
+    JSONFile::JSONFile(string pFile, bool pAllowInvalid) {
         File = HFile(pFile);
-        JSON = JSONObject(File.DataString(), AllowInvalid);
+        JSON.Allow_Invalid(pAllowInvalid);
+        JSON.Parse(File.DataString());
     }
+    //Creates a JSONFile with the given data and will use the given file, but does not read or write immediatly. 
     JSONFile::JSONFile(JSONObject Data, string pFile) {
-        Path = pFile;
-        File = HFile(pFile);
+        File = HFile();
+        File.SetPath(pFile);
         JSON = Data;
     }
+    //Copy Contructor
     JSONFile::JSONFile(const JSONFile& Data) {
-        Path = Data.Path;
         File = Data.File;
         JSON = Data.JSON;
+    }
+    //Destructor
+    JSONFile::~JSONFile() {
+
+    }
+    //Returns the file path of this JSONFile object.
+    string JSONFile::GetPath() {
+        return File.GetPath();
+    }
+    void JSONFile::SetJSON(JSONObject Data) {
+        JSON = Data;
+    }
+    void JSONFile::SetJSON(string Data) {
+        JSON.Parse(Data);
+    }
+    void JSONFile::SetJSON(char* Data) {
+        JSON.Parse(Data);
+    }
+    void JSONFile::Write() {
+        File.Write(JSON.Stringify());
+    }
+    JSONObject JSONFile::GetJSON() {
+        return JSON;
     }
 #pragma endregion
 #pragma region JSONArray

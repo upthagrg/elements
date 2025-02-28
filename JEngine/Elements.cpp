@@ -9,16 +9,16 @@
 
 int main() {
    /// Xeon::XeonSetupWizard();
-    //string testJASON = "{\"name\":\"John\", \"age\":30, \"car\":null, \"obj\":{\"name2\":\"Adam\" \"Ob2\":{\"n3\":\"bill\"}},\"Sex\":M}";
-    //string testJASON2 = "{\"name\":\"John\", \"age\":30, \"car\":null, \"obj\":{\"name2\":\"Adam\" \"Ob2\":{\"n3\":\"bill\"}}}";
-    //string testJASON3 = "{\"name\":\"John\", \"age\":30, \"car\":null, \"PetNameArray\":[\"Jax\",\"Dakota\",\"Nova\"],\"Sex\":M}";
-    //string testJASON4 = "{\"name\":\"John\", \"age\":30, \"car\":null, \"PetNameArray\":[\"Jax\",\"Dakota\",\"Nova\"]}";
+    string testJSON = "{\"name\":\"John\", \"age\":30, \"car\":null, \"obj\":{\"name2\":\"Adam\" \"Ob2\":{\"n3\":\"bill\"}},\"Sex\":M}";
+    //string testJSON2 = "{\"name\":\"John\", \"age\":30, \"car\":null, \"obj\":{\"name2\":\"Adam\" \"Ob2\":{\"n3\":\"bill\"}}}";
+    //string testJSON3 = "{\"name\":\"John\", \"age\":30, \"car\":null, \"PetNameArray\":[\"Jax\",\"Dakota\",\"Nova\"],\"Sex\":M}";
+    //string testJSON4 = "{\"name\":\"John\", \"age\":30, \"car\":null, \"PetNameArray\":[\"Jax\",\"Dakota\",\"Nova\"]}";
     //O2::JSONObject myobj;
 
     //myobj.Parse(testJASON);
     //MyBase.Display(testJASON);
     //MyBase.Display(myobj.Stringify());
-    HFile file1("C:\\ServerFiles\\TEST.txt");
+ /*   HFile file1("C:\\ServerFiles\\TEST.txt");
     MyBase.Display("File 1 contents");
     MyBase.Display(file1.Data());
     MyBase.Display(file1.DataString());
@@ -26,7 +26,15 @@ int main() {
     HFile file2 = file1;
     MyBase.Display("File 2 contents");
     MyBase.Display(file1.Data());
-    MyBase.Display(file2.DataString());
+    MyBase.Display(file2.DataString());*/
+
+    O2::JSONFile File("C:\\ServerFiles\\TEST.txt");
+    MyBase.Display("JSON FILE:");
+    MyBase.Display(File.GetJSON().Stringify());
+    File.SetJSON(testJSON);
+    MyBase.Display("JSON FILE:");
+    MyBase.Display(File.GetJSON().Stringify());
+    File.Write();
     return 0;
 }
 
