@@ -1011,8 +1011,7 @@ namespace O2 {
         JSON.Parse(Data);
     }
     void JSONFile::Write() {
-        string J = JSON.Stringify();
-        File.Write(J);
+        File.Write(JSON.Stringify());
     }
     JSONObject JSONFile::GetJSON() {
         return JSON;
