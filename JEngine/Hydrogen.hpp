@@ -358,6 +358,9 @@ vector<StringTokenWithIndex> TokenizeStringWithIndex(string input, const char* d
         ErrorAndDie(1, "Filter not yet supported");
     }
     int it = 0;
+    if (input.size() <= 0) {
+        Done = true;//if input is empty, do not try to tokenize.
+    }
     while (!Done) {
         for (int i = it; i < input.size(); i++) {
             //if not in delim, add character to the current token
@@ -886,82 +889,119 @@ HFile::HFile(string Requested_File, bool IsBinary) {
     Binary = IsBinary;
     Path = Requested_File;
     int BytesRead = 0;
-    File = fopen(Requested_File.c_str(), "rb");
+
+    if (Binary) {
+        File = fopen(Requested_File.c_str(), "rb");
+    }
+    else {
+        File = fopen(Requested_File.c_str(), "r");
+    }
+
     if (!File) {
         ErrorAndDie(404, "file not found");
     }
     fseek(File, 0, SEEK_END);
-    if (Binary) {
-        FileSize = ftell(File);
-    }
-    else {
-        FileSize = ftell(File) + 1; //the +1 is good for text, may be an issue for binary
-    }
+
+    FileSize = ftell(File);
+
     fseek(File, 0, SEEK_SET);
 
+    if (!Binary) {
+        FileSize++;
+    }
     FileData = new unsigned char[FileSize];
     MyBase.AddPointer((void*)FileData, "Hydrogen HFile");
     memset(FileData, '\0', FileSize);
-    do {
-        BytesRead = fread(FileData, 1, FileSize, File);
-    } while (BytesRead > 0);
+    if (!Binary) {
+        FileSize--;
+    }
+    if (FileSize > 0) {
+        do {
+            BytesRead = fread(FileData, 1, FileSize, File);
+        } while (BytesRead > 0);
+    }
 
     fclose(File);
 
-    ifstream inputFile(Requested_File.c_str());
-    if (!inputFile.is_open()) {
-        ErrorAndDie(404, "file not found");
+    if (!Binary) {
+        FileSize++; //the +1 is good for text, may be an issue for binary
+        ifstream inputFile(Requested_File.c_str());
+        if (!inputFile.is_open()) {
+            ErrorAndDie(404, "file not found");
+        }
+        string line;
+        while (std::getline(inputFile, line)) {
+            FileDataString.append(line);
+        }
+        inputFile.close();
     }
-    string line;
-    while (std::getline(inputFile, line)) {
-        FileDataString.append(line);
-    }
-    inputFile.close();
 }
 
 HFile::HFile(string Requested_File) {
     Path = Requested_File;
     int BytesRead = 0;
-    File = fopen(Requested_File.c_str(), "rb");
+
+    if (Binary) {
+        File = fopen(Requested_File.c_str(), "rb");
+    }
+    else {
+        File = fopen(Requested_File.c_str(), "r");
+    }
+
     if (!File) {
         ErrorAndDie(404, "file not found");
     }
     fseek(File, 0, SEEK_END);
-    if (Binary) {
-        FileSize = ftell(File);
-    }
-    else {
-        FileSize = ftell(File) + 1; //the +1 is good for text, may be an issue for binary
-    }
+
+    FileSize = ftell(File);
+
     fseek(File, 0, SEEK_SET);
 
+    if (!Binary) {
+        FileSize++;
+    }
     FileData = new unsigned char[FileSize];
     MyBase.AddPointer((void*)FileData, "Hydrogen HFile");
     memset(FileData, '\0', FileSize);
-    do {
-        BytesRead = fread(FileData, 1, FileSize, File);
-    } while (BytesRead > 0);
+    if (!Binary) {
+        FileSize--;
+    }
+    if (FileSize > 0) {
+        do {
+            BytesRead = fread(FileData, 1, FileSize, File);
+        } while (BytesRead > 0);
+    }
 
     fclose(File);
 
-    ifstream inputFile(Requested_File.c_str());
-    if (!inputFile.is_open()) {
-        ErrorAndDie(404, "file not found");
+    if (!Binary) {
+        FileSize++; //the +1 is good for text, may be an issue for binary
+        ifstream inputFile(Requested_File.c_str());
+        if (!inputFile.is_open()) {
+            ErrorAndDie(404, "file not found");
+        }
+        string line;
+        while (std::getline(inputFile, line)) {
+            FileDataString.append(line);
+        }
+        inputFile.close();
     }
-    string line;
-    while (std::getline(inputFile, line)) {
-        FileDataString.append(line);
-    }
-    inputFile.close();
 }
 HFile::HFile(const HFile& Data) {
     Path = Data.Path;
     FileSize = Data.FileSize;
+    Binary = Data.Binary;
     FileData = new unsigned char[FileSize];
     MyBase.AddPointer((void*)FileData, "Hydrogen HFile Copy Constructor");
     memset(FileData, '\0', FileSize);
+    if (Binary) {
+        FileSize--;
+    }
     for (int i = 0; i < FileSize; i++) {
         FileData[i] = Data.FileData[i];
+    }
+    if (Binary) {
+        FileSize++;
     }
     FileDataString = Data.FileDataString;
 }
@@ -973,7 +1013,19 @@ int HFile::Size() {
     return FileSize;
 }
 unsigned char* HFile::Data() {
-    return FileData;
+    unsigned char* Copy = new unsigned char[FileSize];
+    MyBase.AddPointer((void*)Copy, "Hydrogen HFile Copy Constructor");
+    memset(Copy, '\0', FileSize);
+    if (Binary) {
+        FileSize--;
+    }
+    for (int i = 0; i < FileSize; i++) {
+        Copy[i] = FileData[i];
+    }
+    if (Binary) {
+        FileSize++;
+    }
+    return Copy;
 }
 string HFile::DataString() {
     return FileDataString;

@@ -956,7 +956,9 @@ namespace O2 {
     //Creates a JSONFile that reads from the given file
     JSONFile::JSONFile(string pFile) {
         File = HFile(pFile);
-        JSON.Parse(File.DataString());
+        if ((File.DataString()).size() > 0) {
+            JSON.Parse(File.DataString());
+        }
     }
     //Creates a JSONFile with the given data and will use the given file, but does not read or write immediatly. 
     JSONFile::JSONFile(JSONObject Data, string pFile) {
@@ -970,9 +972,7 @@ namespace O2 {
         JSON = Data.JSON;
     }
     //Destructor
-    JSONFile::~JSONFile() {
-
-    }
+    JSONFile::~JSONFile() {}
     //Returns the file path of this JSONFile object.
     string JSONFile::GetPath() {
         return File.GetPath();
