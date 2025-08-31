@@ -39,6 +39,9 @@ int main() {
 
 
 
+    //myobj.Parse(testJASON);
+    //MyBase.Display(testJASON);
+    //MyBase.Display(myobj.Stringify());
     HFile file1("C:\\ServerFiles\\TEST.txt");
     MyBase.Display("File 1 contents");
     MyBase.Display(file1.Data());
@@ -49,7 +52,15 @@ int main() {
     HFile file2 = file1;
     MyBase.Display("File 2 contents");
     MyBase.Display(file1.Data());
-    MyBase.Display(file2.DataString());
+    MyBase.Display(file2.DataString());*/
+
+    O2::JSONFile File("C:\\ServerFiles\\TEST.txt");
+    MyBase.Display("JSON FILE:");
+    MyBase.Display(File.GetJSON().Stringify());
+    File.SetJSON(testJSON);
+    MyBase.Display("JSON FILE:");
+    MyBase.Display(File.GetJSON().Stringify());
+    File.Write();
     return 0;
 }
 
