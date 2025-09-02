@@ -382,7 +382,7 @@ namespace Xeon {
         HTTPEngine.SetContentType(O2::HTTPContentType::HTML);
         vector<string> Tokens = TokenizeString(Request, "\n", Filter);
         //TODO: build a find for an ID for the session, if not found build one and redirect, maybe better for harness
-
+        bool reset = true;
         if (Tokens.size() > 0) {
             Tokens = TokenizeString(Tokens[0], " /", Filter);
             for (int i = 0; i < Tokens.size(); i++) {
@@ -390,9 +390,17 @@ namespace Xeon {
                 if (to_upper(compare) == "GET") {
                     IsGETRequest = true;
                 }
-                if (std::regex_search(compare, File_Extension_Regex)) {
-                    Requested_File.append(Path);
+                if (to_upper(compare) != "GET" && to_upper(compare) != "HTTP" && !std::regex_search(compare, File_Extension_Regex)) {
+                    if (Requested_File == "") {
+                        Requested_File.append(Path);
+                    }
                     Requested_File.append(Tokens[i]);
+                    Requested_File.append("\\");
+                }
+                if (std::regex_search(compare, File_Extension_Regex)) {
+                    //Requested_File.append(Path);
+                    Requested_File.append(Tokens[i]);
+                    reset = false;
                 }
                 if (std::regex_search(compare, File_Extension_jpg_Regex)) {
                     HTTPEngine.SetContentType(O2::HTTPContentType::JPEG);
@@ -406,10 +414,14 @@ namespace Xeon {
                 else if (std::regex_search(compare, File_Extension_mp4_Regex)) {
                     HTTPEngine.SetContentType(O2::HTTPContentType::MP4);
                 }
+                if (to_upper(compare) == "HTTP") { break; }
             }
         }
 
         if (IsGETRequest) {
+            if (reset) {
+                Requested_File = "";
+            }
             if (Requested_File == "") {
                 for (int i = 1; i < Tokens.size(); i++) {
                     if (Tokens[i] != "HTTP") {
