@@ -67,12 +67,46 @@
     <None Include="ServerFiles\index7.html">
       <Filter>ServerFiles</Filter>
     </None>
+    <None Include="ServerFiles\ContentNotFound.html" />
+    <None Include="ServerFiles\Bootstraptesting.html">
+      <Filter>ServerFiles</Filter>
+    </None>
+    <None Include="ServerFiles\Goodbye.html">
+      <Filter>ServerFiles</Filter>
+    </None>
+    <None Include="ServerFiles\Hello.html">
+      <Filter>ServerFiles</Filter>
+    </None>
+    <None Include="ServerFiles\GPT\index2.html">
+      <Filter>ServerFiles</Filter>
+    </None>
+    <None Include="ServerFiles\GPT\index3.html">
+      <Filter>ServerFiles</Filter>
+    </None>
+    <None Include="ServerFiles\GPT\index4.html">
+      <Filter>ServerFiles</Filter>
+    </None>
+    <None Include="ServerFiles\GPT\index5.html">
+      <Filter>ServerFiles</Filter>
+    </None>
+    <None Include="ServerFiles\GPT\index6.html">
+      <Filter>ServerFiles</Filter>
+    </None>
+    <None Include="ServerFiles\GPT\index7.html">
+      <Filter>ServerFiles</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="ServerFiles\favicon.ico">
       <Filter>ServerFiles</Filter>
     </Image>
     <Image Include="ServerFiles\stevie.jpg">
+      <Filter>ServerFiles</Filter>
+    </Image>
+    <Image Include="ServerFiles\Tree.jpeg">
+      <Filter>ServerFiles</Filter>
+    </Image>
+    <Image Include="ServerFiles\vet.png">
       <Filter>ServerFiles</Filter>
     </Image>
   </ItemGroup>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang = "en">
+<head>
+<style>
+.page-container{
+	width: 1600px;
+	height: 700px;
+	background-color: yellow;
+}
+.flex-container-header {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  height: 6%;
+  border: 3px solid black;
+  background-color: hotpink;
+}
+.flex-container-middle {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  height: 80%;
+  width: 100%;
+  resize: both;
+  overflow: auto;
+  border: 3px solid black;
+  background-color: DodgerBlue;
+}
+.flex-container-middle > .side-left {
+  background-color: #f1f1f1;
+  height: auto;
+  width: 5%;
+  border: 3px solid black;
+  resize: both;
+  overflow: auto;
+  font-size: 30px;
+}
+.flex-container-middle > .middle {
+  background-color: #f1f1f1;
+  poistion: relative;
+  height: auto;
+  width: 80%;
+  border: 3px solid black;
+  resize: both;
+  overflow: auto;
+  font-size: 30px;
+}
+.flex-container-middle > .side-right {
+  background-color: #f1f1f1;
+  poistion: relative;
+  height: auto;
+  width: 5%;
+  border: 3px solid black;
+  resize: both;
+  overflow: auto;
+  font-size: 30px;
+}
+.flex-container-footer {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  height: 14%;
+  border: 3px solid black;
+  resize: vertical;
+  overflow: auto;
+  background-color: limegreen;
+}
+
+</style>
+<meta charset = "utf-8" name = "viewport" content = "width=device-width, initial-scale=1">
+<title>Base</title>
+</head>
+<body>
+	<div class = "page-container">
+		<div class="flex-container-header">
+			<div>Navi</div>
+		</div>
+
+		<div class="flex-container-middle">
+			<div class="side-left">Action</div>
+			<div class="middle">Game</div>
+			<div class="side-right">Data</div>  
+		</div>
+
+		<div class="flex-container-footer">Chat</div>
+	</div>
+</body>
+</html>

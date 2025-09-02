@@ -158,8 +158,17 @@
     <ClInclude Include="Xeon.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="ServerFiles\Bootstraptesting.html" />
     <None Include="ServerFiles\Button.html" />
     <None Include="ServerFiles\ContentNotFound.html" />
+    <None Include="ServerFiles\Goodbye.html" />
+    <None Include="ServerFiles\GPT\index2.html" />
+    <None Include="ServerFiles\GPT\index3.html" />
+    <None Include="ServerFiles\GPT\index4.html" />
+    <None Include="ServerFiles\GPT\index5.html" />
+    <None Include="ServerFiles\GPT\index6.html" />
+    <None Include="ServerFiles\GPT\index7.html" />
+    <None Include="ServerFiles\Hello.html" />
     <None Include="ServerFiles\index.html" />
     <None Include="ServerFiles\index2.html" />
     <None Include="ServerFiles\index3.html" />
@@ -171,6 +180,8 @@
   <ItemGroup>
     <Image Include="ServerFiles\favicon.ico" />
     <Image Include="ServerFiles\stevie.jpg" />
+    <Image Include="ServerFiles\Tree.jpeg" />
+    <Image Include="ServerFiles\vet.png" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="ServerFiles\TEST.txt" />

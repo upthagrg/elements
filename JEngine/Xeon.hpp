@@ -14,33 +14,6 @@ One of these future abilities will be a dynamicly genreated HTML engine (maybe i
 #include "Oxygen.hpp"
 
 namespace Xeon {
-    vector<string> BuildIndex(string pPath) {
-        vector<string> files;
-
-        // This structure would distinguish a file from a
-        // directory
-        struct stat sb;
-
-        // Looping until all the items of the directory are
-        // exhausted
-        for (const auto& entry : std::filesystem::directory_iterator(pPath)) {
-
-            // Converting the path to const char * in the
-            // subsequent lines
-            std::filesystem::path outfilename = entry.path();
-            std::string outfilename_str = outfilename.string();
-            const char* file_full_path = outfilename_str.c_str();
-
-            string File = file_full_path;
-            File = File.substr(pPath.length(), File.length() - pPath.length());
-            if (!(stat(file_full_path, &sb) == 0 && !(sb.st_mode & S_IFDIR))) {
-                //is a directory
-                File.append("*");
-            }
-            files.push_back(File);
-        }
-        return files;
-}
 #pragma region Enum
     enum DataTypes
     {
@@ -78,6 +51,7 @@ namespace Xeon {
         CRITICAL_SECTION* GetLock();
         char* GetSocketMessage(O2::O2SocketID);
         void SetPatch(string);
+        virtual string BuildIndex(string);
 
     protected:
         O2::O2Socket* Server_Socket;
@@ -144,6 +118,46 @@ namespace Xeon {
         Path = NewPath;
     }
 
+    string Xeon_Base::BuildIndex(string pPath) {
+        string index = "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF - 8\"><title>Index</title><style>body{font-family:'Segoe UI',Tahoma,sans-serif;margin:0;padding:0;background:#f5f8fa;color:#333;display:flex;align-items:center;justify-content:center;height:100vh;}.container{background:#fff;padding:40px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.1);max-width:500px;width:90%;}h1{text-align:center;color:#4a90e2;margin-bottom:25px;}ul{list-style:none;padding:0;margin:0;}li{margin:10px 0;}a{display:block;background:#f0f4f8;padding:12px 16px;border-radius:8px;text-decoration:none;color:#333;transition:background 0.2s,transform 0.1s;}a:hover{background:#4a90e2;color:#fff;transform:translateY(-2px);}</style></head><body><div class=\"container\"><h1>Index</h1><ul>";
+
+        // This structure would distinguish a file from a
+        // directory
+        struct stat sb;
+
+        // Looping until all the items of the directory are
+        // exhausted
+        bool failed = true;
+        for (const auto& entry : std::filesystem::directory_iterator(pPath)) {
+
+            // Converting the path to const char * in the
+            // subsequent lines
+            std::filesystem::path outfilename = entry.path();
+            std::string outfilename_str = outfilename.string();
+            const char* file_full_path = outfilename_str.c_str();
+
+            string FullFile = file_full_path;
+            string File = file_full_path;
+            int filelen = File.length();
+            int pathlen = pPath.length();
+
+            File = File.substr(pPath.length() +1, (File.length() - pPath.length() -1));
+            if (!(stat(file_full_path, &sb) == 0 && !(sb.st_mode & S_IFDIR))) {
+                //is a directory
+                File.append("*");
+            }
+            index.append("<li><a href=\"" + FullFile + "\">" + File + "</a></li>");
+            failed = false;
+        }
+
+        index.append("</ul></div></body></html>");
+        if (failed) {
+            index = "";
+        }
+        string ret;
+        ret = index;
+        return ret;
+    }
 
     //(virtual) Default start function, developers can override this
     void Xeon_Base::Start() {
@@ -348,6 +362,13 @@ namespace Xeon {
         int DataTypeEnm = HTML;
         string compare = "";
         string Line;
+        bool IsGETRequest = false;
+        O2::O2Data Response;
+        bool ReturnIndexHtml = false;
+        bool ReturnFolder = false;
+        FILE* File;
+        int FileSize = 0;
+        string RequestedPath = "";
 
         std::regex File_Extension_Regex("\\.(?:html|jpg|jpeg|png|ico|mp4)$");
         std::regex File_Extension_jpg_Regex("\\.(?:jpg|jpeg)$");
@@ -368,6 +389,9 @@ namespace Xeon {
             Tokens = TokenizeString(Tokens[0], " /", Filter);
             for (int i = 0; i < Tokens.size(); i++) {
                 compare = Tokens[i];
+                if (to_upper(compare) == "GET") {
+                    IsGETRequest = true;
+                }
                 if (std::regex_search(compare, File_Extension_Regex)) {
                     Requested_File.append(Path);
                     Requested_File.append(Tokens[i]);
@@ -386,58 +410,132 @@ namespace Xeon {
                 }
             }
         }
-        if (Requested_File == "") {
-            Requested_File.append(Path);
-            Requested_File.append("index.html");
-        }
-        if (XDebug) {
-            string msg = "";
-            msg.append("File: ");
-            msg.append(Requested_File);
-            MyBase.Display(msg);
-        }
 
-        HTTPEngine.SetConnection(O2::HTTPConnection::CLOSED);
+        if (IsGETRequest) {
+            if (Requested_File == "") {
+                for (int i = 1; i < Tokens.size(); i++) {
+                    if (Tokens[i] != "HTTP") {
+                        RequestedPath.append(Tokens[i]);
+                    }
+                    else {
+                        ReturnFolder = true;
+                        break;
+                    }
+                }
+                //attempt to load index.html
+                Requested_File.append(Path);
+                if (RequestedPath == "") {
+                    ReturnIndexHtml = true;
+                    ReturnFolder = false;
+                    Requested_File.append("index.html");
+                }
 
-        //Get Content from file
-        O2::O2Data Response;
-        FILE* File;
-        int FileSize = 0;
-        File = fopen(Requested_File.c_str(), "rb");
-        if (!File) {
-            HTTPEngine.SetStatus(O2::HTTPStatus::NOTFOUND);
-            Requested_File = "";
-            Requested_File.append(Path);
-            Requested_File.append("ContentNotFound.html");
-            File = fopen(Requested_File.c_str(), "rb");
-        }
-        if (!File) {
-            string NotFoundPage = "<!DOCTYPE html><html><head><title>404 Not Found</title></head><body><h1>404 Not Found</h1><p>The page you are looking for could not be found.</p></body></html>";
-            HTTPEngine.SetContentLength(NotFoundPage.length());
-            Response.AddData(HTTPEngine.BuildHttpMessage(true));
-            Content.SetData(NotFoundPage.c_str(), NotFoundPage.length()); //Convert data to binary
-            Response.AddData(Content);//Add the binary content to the reponse
+                //if that does not exist, attempt to build an index
+
+            }
+            if (XDebug) {
+                string msg = "";
+                msg.append("File: ");
+                msg.append(Requested_File);
+                MyBase.Display(msg);
+            }
+
+            HTTPEngine.SetConnection(O2::HTTPConnection::CLOSED);
+
+            //Get Content from file
+            if (!ReturnFolder) {
+                File = fopen(Requested_File.c_str(), "rb");
+                if (!File && ReturnIndexHtml) {
+                    ReturnFolder = true;
+                }
+                if (!ReturnFolder) {
+                    if (!File) {
+                        HTTPEngine.SetStatus(O2::HTTPStatus::NOTFOUND);
+                        Requested_File = "";
+                        Requested_File.append(Path);
+                        Requested_File.append("ContentNotFound.html");
+                        File = fopen(Requested_File.c_str(), "rb");
+                    }
+                    if (!File) {
+                        string NotFoundPage = "<!DOCTYPE html><html><head><title>404 Not Found</title></head><body><h1>404 Not Found</h1><p>The page you are looking for could not be found.</p></body></html>";
+                        HTTPEngine.SetContentLength(NotFoundPage.length());
+                        Response.AddData(HTTPEngine.BuildHttpMessage(true));
+                        Content.SetData(NotFoundPage.c_str(), NotFoundPage.length()); //Convert data to binary
+                        Response.AddData(Content);//Add the binary content to the reponse
+                    }
+                    else {
+                        fseek(File, 0, SEEK_END);
+                        FileSize = ftell(File);
+                        fseek(File, 0, SEEK_SET);
+
+                        HTTPEngine.SetContentLength(FileSize);
+
+                        Response.AddData(HTTPEngine.BuildHttpMessage(true)); //Add the HTTP Headers to the response
+                        char* FileData = new char[FileSize]; //TODO: this might be the memort leaks
+                        memset(FileData, '\0', FileSize);
+
+                        int BytesRead = 0;
+                        do {
+                            BytesRead = fread(FileData, 1, FileSize, File);
+                        } while (BytesRead > 0);
+                        fclose(File);
+
+                        Content.SetData(FileData, FileSize); //Convert data to binary
+                        delete[] FileData;
+                        Response.AddData(Content);//Add the binary content to the reponse
+                    }
+                }
+            }
+            if (ReturnFolder) {
+                Requested_File = Path;
+                Requested_File.append(RequestedPath);
+                string index = BuildIndex(Requested_File);
+                if (index != "") {
+                    HTTPEngine.SetContentLength(index.length());
+                    Response.AddData(HTTPEngine.BuildHttpMessage(true));
+                    Content.SetData(index.c_str(), index.length()); //Convert data to binary
+                    Response.AddData(Content);//Add the binary content to the reponse
+                    HTTPEngine.SetStatus(O2::HTTPStatus::OK);
+                }
+                else {
+                    HTTPEngine.SetStatus(O2::HTTPStatus::NOTFOUND);
+                    Requested_File = "";
+                    Requested_File.append(Path);
+                    Requested_File.append("ContentNotFound.html");
+                    File = fopen(Requested_File.c_str(), "rb");
+                    if (!File) {
+                        string NotFoundPage = "<!DOCTYPE html><html><head><title>404 Not Found</title></head><body><h1>404 Not Found</h1><p>The page you are looking for could not be found.</p></body></html>";
+                        HTTPEngine.SetContentLength(NotFoundPage.length());
+                        Response.AddData(HTTPEngine.BuildHttpMessage(true));
+                        Content.SetData(NotFoundPage.c_str(), NotFoundPage.length()); //Convert data to binary
+                        Response.AddData(Content);//Add the binary content to the reponse
+                    }
+                    else {
+                        fseek(File, 0, SEEK_END);
+                        FileSize = ftell(File);
+                        fseek(File, 0, SEEK_SET);
+
+                        HTTPEngine.SetContentLength(FileSize);
+
+                        Response.AddData(HTTPEngine.BuildHttpMessage(true)); //Add the HTTP Headers to the response
+                        char* FileData = new char[FileSize]; //TODO: this might be the memort leaks
+                        memset(FileData, '\0', FileSize);
+
+                        int BytesRead = 0;
+                        do {
+                            BytesRead = fread(FileData, 1, FileSize, File);
+                        } while (BytesRead > 0);
+                        fclose(File);
+
+                        Content.SetData(FileData, FileSize); //Convert data to binary
+                        delete[] FileData;
+                        Response.AddData(Content);//Add the binary content to the reponse
+                    }
+                }
+            }
         }
         else {
-            fseek(File, 0, SEEK_END);
-            FileSize = ftell(File);
-            fseek(File, 0, SEEK_SET);
-
-            HTTPEngine.SetContentLength(FileSize);
-
-            Response.AddData(HTTPEngine.BuildHttpMessage(true)); //Add the HTTP Headers to the response
-            char* FileData = new char[FileSize]; //TODO: this might be the memort leaks
-            memset(FileData, '\0', FileSize);
-
-            int BytesRead = 0;
-            do {
-                BytesRead = fread(FileData, 1, FileSize, File);
-            } while (BytesRead > 0);
-            fclose(File);
-
-            Content.SetData(FileData, FileSize); //Convert data to binary
-            delete[] FileData;
-            Response.AddData(Content);//Add the binary content to the reponse
+            ErrorAndDie(404, "Method not supported");
         }
 
         O2::O2Data FinalResponse = Response;
