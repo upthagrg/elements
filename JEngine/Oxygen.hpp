@@ -116,6 +116,7 @@ namespace O2 {
         int Socket_Protocol;
         int Socket_Port;
         bool Socket_Bound;
+        bool WSA_Started;
         struct sockaddr_in Socket_Addr_In;
         int Socket_Addr_In_Size;
         string Socket_IPAddr;
@@ -157,6 +158,7 @@ namespace O2 {
         Socket_Addr_In_Size = -1;
         Allowed_Backlog = -1;
         Socket_Bound = false;
+        WSA_Started = false;
         Socket_AF = -1;
         Socket_Type = -1;
         Socket_Protocol = -1;
@@ -177,6 +179,7 @@ namespace O2 {
         Socket_Protocol = Protocol;
         Buffer_Size = Read_Buffer_Size;
         ErrorCheck0((WSAStartup(MAKEWORD(2, 2), &WSA_data)), 1, "Failed WSAStartup");
+        WSA_Started = true;
         ListenerSocket = socket(Address_Family, Type, Protocol);
         if (ListenerSocket == INVALID_SOCKET) {
             ErrorAndDie(2, "Failed to create Socket");
@@ -227,7 +230,10 @@ namespace O2 {
         Socket_Port = Port;
         Socket_Addr_In.sin_port = htons(Port);
         Socket_Addr_In_Size = sizeof(Socket_Addr_In);
-
+        if (!WSA_Started) {
+            ErrorCheck0((WSAStartup(MAKEWORD(2, 2), &WSA_data)), 1, "Failed WSAStartup");
+            WSA_Started = true;
+        }
         ErrorCheck0((bind(ListenerSocket, (SOCKADDR*)&Socket_Addr_In, Socket_Addr_In_Size)), 3, "Failed to bind socket");
         Socket_Bound = true;
     }
@@ -591,6 +597,7 @@ namespace O2 {
             ErrorCheck0((closesocket(ListenerSocket)), 23, "Failed to close open socket");
         }
         ErrorCheck0(WSACleanup(), 24, "WSA Cleanup failed");
+        WSA_Started = false;
     }
     //Lock for object operations
     void O2Socket::Lock() {
@@ -670,6 +677,7 @@ namespace O2 {
         void SetContentLength(uint64_t);
         void SetConnection(HTTPConnection);
         string BuildHttpMessage();
+        string BuildHttpMessage(bool);
     };
 
     HTTPEngine::HTTPEngine() {
@@ -733,6 +741,9 @@ namespace O2 {
         CurrentConnection = con;
     }
     string HTTPEngine::BuildHttpMessage() {
+        return BuildHttpMessage(false);
+    }
+    string HTTPEngine::BuildHttpMessage(bool SendHTML404PageBack) {
         //Start with the HTTP Version String
         string message = Version;
         message.append(" ");
@@ -775,7 +786,7 @@ namespace O2 {
         message.append(ServerVersion);
         message.append("\n");
 
-        if (CurrentStatus != NOTFOUND) {
+        if (CurrentStatus != NOTFOUND || SendHTML404PageBack) {
             //Add Content Type
             message.append("Content-Type: ");
             switch (CurrentContentType) {

@@ -159,6 +159,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="ServerFiles\Button.html" />
+    <None Include="ServerFiles\ContentNotFound.html" />
     <None Include="ServerFiles\index.html" />
     <None Include="ServerFiles\index2.html" />
     <None Include="ServerFiles\index3.html" />

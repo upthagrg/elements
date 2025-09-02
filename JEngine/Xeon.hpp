@@ -74,10 +74,10 @@ namespace Xeon {
         void DebugMessage(string);
         void ToggleDebug();
         void SetPollTimeout(int);
-        void SetConnectionTimeout(int);
         CONDITION_VARIABLE* GetCondition();
         CRITICAL_SECTION* GetLock();
         char* GetSocketMessage(O2::O2SocketID);
+        void SetPatch(string);
 
     protected:
         O2::O2Socket* Server_Socket;
@@ -95,6 +95,7 @@ namespace Xeon {
         int WorkerThreads;
         vector<std::thread> Workers;
         int PollTimeout;
+        string Path;
     };
     //Default constructor of Xeon_Base objects, this would be an unusable object in this state
     Xeon_Base::Xeon_Base() {
@@ -111,6 +112,7 @@ namespace Xeon {
         Server_Socket = new O2::O2Socket();
         WorkerThreads = 0;
         PollTimeout = 1;
+        Path = ".\\";
     }
     //Constructor of a usable Xeon_Base object
     Xeon_Base::Xeon_Base(string lanaddress, string addr, int port, int allowed_backlog, int buffer_size, int workerthreads) {
@@ -128,6 +130,7 @@ namespace Xeon {
         Server_Socket = new O2::O2Socket(MAKEWORD(2, 2), AF_INET, SOCK_STREAM, IPPROTO_TCP, Buffer_Size, (workerthreads <= 0));
         WorkerThreads = workerthreads;
         PollTimeout = 30;
+        Path = ".\\";
     }
     //Xeon_Base destructor
     Xeon_Base::~Xeon_Base() {
@@ -136,6 +139,11 @@ namespace Xeon {
         }
         delete Server_Socket;
     }
+
+    void Xeon_Base::SetPatch(string NewPath) {
+        Path = NewPath;
+    }
+
 
     //(virtual) Default start function, developers can override this
     void Xeon_Base::Start() {
@@ -341,7 +349,6 @@ namespace Xeon {
         string compare = "";
         string Line;
 
-        string Path = "C:\\ServerFiles\\";
         std::regex File_Extension_Regex("\\.(?:html|jpg|jpeg|png|ico|mp4)$");
         std::regex File_Extension_jpg_Regex("\\.(?:jpg|jpeg)$");
         std::regex File_Extension_png_Regex("\\.(?:png)$");
@@ -390,13 +397,26 @@ namespace Xeon {
             MyBase.Display(msg);
         }
 
+        HTTPEngine.SetConnection(O2::HTTPConnection::CLOSED);
+
         //Get Content from file
         O2::O2Data Response;
         FILE* File;
         int FileSize = 0;
         File = fopen(Requested_File.c_str(), "rb");
         if (!File) {
-            ErrorAndDie(404, "file not found");
+            HTTPEngine.SetStatus(O2::HTTPStatus::NOTFOUND);
+            Requested_File = "";
+            Requested_File.append(Path);
+            Requested_File.append("ContentNotFound.html");
+            File = fopen(Requested_File.c_str(), "rb");
+        }
+        if (!File) {
+            string NotFoundPage = "<!DOCTYPE html><html><head><title>404 Not Found</title></head><body><h1>404 Not Found</h1><p>The page you are looking for could not be found.</p></body></html>";
+            HTTPEngine.SetContentLength(NotFoundPage.length());
+            Response.AddData(HTTPEngine.BuildHttpMessage(true));
+            Content.SetData(NotFoundPage.c_str(), NotFoundPage.length()); //Convert data to binary
+            Response.AddData(Content);//Add the binary content to the reponse
         }
         else {
             fseek(File, 0, SEEK_END);
@@ -404,10 +424,9 @@ namespace Xeon {
             fseek(File, 0, SEEK_SET);
 
             HTTPEngine.SetContentLength(FileSize);
-            HTTPEngine.SetConnection(O2::HTTPConnection::CLOSED);
 
-            Response.AddData(HTTPEngine.BuildHttpMessage()); //Add the HTTP Headers to the response
-            char* FileData = new char[FileSize]; //TODO: this might be the memeory leak
+            Response.AddData(HTTPEngine.BuildHttpMessage(true)); //Add the HTTP Headers to the response
+            char* FileData = new char[FileSize]; //TODO: this might be the memort leaks
             memset(FileData, '\0', FileSize);
 
             int BytesRead = 0;
@@ -527,6 +546,7 @@ namespace Xeon {
         char Next;
         int AdditionalLogging = -1;
         int PollTimeOut = 30;
+        string NewPath = ".\\ServerFiles\\";
         MyBase.Display("Welcome to the Xeon Set Up Wizard");
         do {
             Fail = false;
@@ -544,13 +564,16 @@ namespace Xeon {
                 Fail = true;
             }
         } while (Fail);
-        do {
-            Fail = false;
-            PollTimeOut = GetIntInput("What should the timeout be in seconds?", true, false, false);
-        } while (Fail);
+        PollTimeOut = GetIntInput("What should the timeout be in seconds?", true, false, false);
+        Fail = false;
+        bool changepath = GetBoolInput("Would you like to change the base path?");
+        if (changepath) {
+            NewPath = GetStringInput("Enter the new base path");
+        }
 
 
         Xeon::WebServer MyWebServer(Backlog, Buffer, Threads, false);
+        MyWebServer.SetPatch(NewPath);
         if (AdditionalLogging == 1) {
             MyWebServer.ToggleDebug();
         }
@@ -568,13 +591,13 @@ namespace Xeon {
             if (Input == "1") {
                 MyWebServer.Stop();
                 MyBase.Display("Finished stopping, going to sleep");
-                Sleep(10000);
+                Sleep(3000);
                 system("cls");
                 break;
             }
             else if (Input == "2") {
                 MyWebServer.Stop();
-                Sleep(10000);
+                Sleep(3000);
                 MyWebServer.Start();
                 Input = "";
                 system("cls");
