@@ -382,6 +382,7 @@ namespace Xeon {
         HTTPEngine.SetContentType(O2::HTTPContentType::HTML);
         vector<string> Tokens = TokenizeString(Request, "\n", Filter);
         //TODO: build a find for an ID for the session, if not found build one and redirect, maybe better for harness
+
         if (Tokens.size() > 0) {
             Tokens = TokenizeString(Tokens[0], " /", Filter);
             for (int i = 0; i < Tokens.size(); i++) {
