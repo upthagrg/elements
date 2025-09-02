@@ -138,15 +138,13 @@ namespace Xeon {
 
             string FullFile = file_full_path;
             string File = file_full_path;
-            int filelen = File.length();
-            int pathlen = pPath.length();
 
             File = File.substr(pPath.length() +1, (File.length() - pPath.length() -1));
             if (!(stat(file_full_path, &sb) == 0 && !(sb.st_mode & S_IFDIR))) {
                 //is a directory
                 File.append("*");
             }
-            index.append("<li><a href=\"" + FullFile + "\">" + File + "</a></li>");
+            index.append("<li><a href=\"" + File + "\">" + File + "</a></li>");
             failed = false;
         }
 
@@ -384,7 +382,6 @@ namespace Xeon {
         HTTPEngine.SetContentType(O2::HTTPContentType::HTML);
         vector<string> Tokens = TokenizeString(Request, "\n", Filter);
         //TODO: build a find for an ID for the session, if not found build one and redirect, maybe better for harness
-
         if (Tokens.size() > 0) {
             Tokens = TokenizeString(Tokens[0], " /", Filter);
             for (int i = 0; i < Tokens.size(); i++) {
