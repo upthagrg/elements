@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Interactive Modular HTML Page</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f5f8fa;
+      color: #333;
+      transition: background 0.3s, color 0.3s;
+    }
+    header {
+      background: #4a90e2;
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+    h1, h2 {
+      margin: 0 0 10px;
+    }
+    main {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      padding: 20px;
+      max-width: 1200px;
+      margin: auto;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      transition: transform 0.2s, background 0.3s, color 0.3s;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+    button {
+      background: #4a90e2;
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.2s, transform 0.1s;
+      margin: 5px 3px;
+    }
+    button:hover {
+      background: #357ab8;
+      transform: scale(1.05);
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background: #f0f4f8;
+    }
+    input[type="text"] {
+      padding: 6px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    footer {
+      text-align: center;
+      padding: 15px;
+      background: #e9eef2;
+      color: #555;
+    }
+    /* Dark mode */
+    body.dark {
+      background: #1e1e1e;
+      color: #eee;
+    }
+    body.dark header {
+      background: #222;
+    }
+    body.dark .card {
+      background: #2c2c2c;
+      color: #ddd;
+    }
+    body.dark footer {
+      background: #222;
+      color: #aaa;
+    }
+    /* Viewport Card */
+    #viewport {
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      text-align: center;
+      background: linear-gradient(135deg, #e3f2fd, #f9f9f9);
+      border: 2px dashed #4a90e2;
+    }
+    body.dark #viewport {
+      background: linear-gradient(135deg, #2a2a2a, #1e1e1e);
+      border: 2px dashed #888;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Interactive Modular Example</h1>
+    <p>A clean design with CSS, JavaScript, and a live viewport</p>
+    <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
+  </header>
+
+  <main>
+    <!-- Viewport Card -->
+    <div class="card" id="viewport">
+      <p>👋 Welcome! Click a button on another card to update this viewport.</p>
+    </div>
+
+    <!-- Image Card -->
+    <div class="card">
+      <h2>Image Example</h2>
+      <img src="stevie.jpg" alt="Stevie the cat">
+      <p>Here’s Stevie displayed directly.</p>
+      <a href="stevie.jpg" target="_blank">
+        <button>View Stevie.jpg</button>
+      </a>
+      <br><br>
+      <button onclick="updateViewport('🐱 Stevie says hello!')">Send to Viewport</button>
+    </div>
+
+    <!-- List Card -->
+    <div class="card">
+      <h2>List Example</h2>
+      <ul>
+        <li>Clean modular structure</li>
+        <li>Clickable links</li>
+        <li>Images and text</li>
+        <li>Grid-based layout</li>
+      </ul>
+      <button onclick="updateViewport('📋 You clicked the List card!')">Send to Viewport</button>
+    </div>
+
+    <!-- Table Card -->
+    <div class="card">
+      <h2>Table Example</h2>
+      <table>
+        <tr>
+          <th>Feature</th>
+          <th>Example</th>
+        </tr>
+        <tr>
+          <td>Text formatting</td>
+          <td><strong>Bold</strong>, <em>Italic</em>, <code>Code</code></td>
+        </tr>
+        <tr>
+          <td>Links</td>
+          <td><a href="https://www.example.com">External site</a></td>
+        </tr>
+      </table>
+      <button onclick="updateViewport('📊 Table card sent data to viewport!')">Send to Viewport</button>
+    </div>
+
+    <!-- Form Card -->
+    <div class="card">
+      <h2>Form Example</h2>
+      <form onsubmit="return handleForm(event)">
+        <label for="name">Name: </label><br>
+        <input type="text" id="name" name="name" required>
+        <br><br>
+        <input type="submit" value="Submit">
+      </form>
+      <p id="formMessage" style="margin-top:10px; color: green;"></p>
+      <button onclick="updateViewport('📝 Form card interacted with viewport!')">Send to Viewport</button>
+    </div>
+
+    <!-- File Cards -->
+    <div class="card">
+      <h2>PDF Example</h2>
+      <p>A link to an example PDF file.</p>
+      <a href="example.pdf" target="_blank">
+        <button>Open PDF</button>
+      </a>
+      <button onclick="updateViewport('📄 PDF card triggered!')">Send to Viewport</button>
+    </div>
+
+    <div class="card">
+      <h2>Word Document</h2>
+      <p>A sample Microsoft Word document link.</p>
+      <a href="example.docx" target="_blank">
+        <button>Open DOCX</button>
+      </a>
+      <button onclick="updateViewport('📝 Word card triggered!')">Send to Viewport</button>
+    </div>
+
+    <div class="card">
+      <h2>Excel Spreadsheet</h2>
+      <p>A sample Excel file for download or viewing.</p>
+      <a href="example.xlsx" target="_blank">
+        <button>Open XLSX</button>
+      </a>
+      <button onclick="updateViewport('📊 Excel card triggered!')">Send to Viewport</button>
+    </div>
+
+    <div class="card">
+      <h2>Text File</h2>
+      <p>A plain text example file.</p>
+      <a href="example.txt" target="_blank">
+        <button>Open TXT</button>
+      </a>
+      <button onclick="updateViewport('📜 TXT card triggered!')">Send to Viewport</button>
+    </div>
+
+<!-- NEW: AJAX Fetch Card -->
+<div class="card">
+  <h2>AJAX Fetch Example</h2>
+  <p>This card will request content from <code>localhost:8081</code> and load it into the viewport.</p>
+  
+  <label for="ajaxInput">Enter value:</label><br>
+  <input type="text" id="ajaxInput" placeholder="Type something..." />
+  <br><br>
+  <button onclick="fetchFromServer()">Fetch Content</button>
+</div>
+
+    <!-- Counter Card -->
+    <div class="card">
+      <h2>Counter</h2>
+      <p id="counterValue">0</p>
+      <button onclick="changeCounter(1)">+1</button>
+      <button onclick="changeCounter(-1)">-1</button>
+      <button onclick="resetCounter()">Reset</button>
+      <button onclick="sendCounter()">Send Count to Viewport</button>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 My Interactive Example Page</p>
+  </footer>
+
+  <script>
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark");
+    }
+
+    function handleForm(event) {
+      event.preventDefault();
+      const name = document.getElementById("name").value;
+      const message = "Hello, " + name + "! Thanks for submitting.";
+      document.getElementById("formMessage").innerText = message;
+      updateViewport("👋 " + message);
+      return false;
+    }
+
+    function updateViewport(content) {
+      document.getElementById("viewport").innerHTML = "<div style='width:100%'>" + content + "</div>";
+    }
+
+function fetchFromServer() {
+  const value = document.getElementById("ajaxInput").value;
+  const url = "http://localhost:8081/?value=" + encodeURIComponent(value);
+
+  fetch(url)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error("Network response was not ok: " + response.statusText);
+      }
+      return response.text();
+    })
+    .then(html => {
+      updateViewport(html);
+    })
+    .catch(error => {
+      updateViewport("❌ Error fetching from server: " + error.message);
+    });
+}
+
+
+    // --- Counter ---
+    let counter = 0;
+    function changeCounter(amount) {
+      counter += amount;
+      document.getElementById("counterValue").innerText = counter;
+    }
+    function resetCounter() {
+      counter = 0;
+      document.getElementById("counterValue").innerText = counter;
+    }
+    function sendCounter() {
+      updateViewport("🔢 Counter value: " + counter);
+    }
+  </script>
+</body>
+</html>

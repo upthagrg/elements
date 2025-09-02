@@ -157,6 +157,23 @@
     <ClInclude Include="WebDoc.hpp" />
     <ClInclude Include="Xeon.hpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="ServerFiles\Button.html" />
+    <None Include="ServerFiles\index.html" />
+    <None Include="ServerFiles\index2.html" />
+    <None Include="ServerFiles\index3.html" />
+    <None Include="ServerFiles\index4.html" />
+    <None Include="ServerFiles\index5.html" />
+    <None Include="ServerFiles\index6.html" />
+    <None Include="ServerFiles\index7.html" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="ServerFiles\favicon.ico" />
+    <Image Include="ServerFiles\stevie.jpg" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="ServerFiles\TEST.txt" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

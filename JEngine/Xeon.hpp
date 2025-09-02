@@ -232,20 +232,12 @@ namespace Xeon {
         MyBase.Display("Safely Stopping Xeon...");
         Run = false;
         MyBase.Display("Stopping Worker(s)...");
-        int Worker_Stop_Attempts;
         for (int i = 0; i < Workers.size(); i++) {
-            Worker_Stop_Attempts = 0;
-            while (!(Workers[i].joinable()) && Worker_Stop_Attempts < 100) {
-                Sleep(10);
-                Worker_Stop_Attempts++;
-            }
-            if (Worker_Stop_Attempts >= 100) {
-                MyBase.Display("Failed to Stop Worker(s)");
-            }
-            else {
+            if (Workers[i].joinable()) {
                 Workers[i].join();
             }
         }
+        MyBase.Display("Worker(s) stopped");
         MyBase.Display("Closing Socket(s)...");
         Server_Socket->Close();
         Unlock();
@@ -304,6 +296,17 @@ namespace Xeon {
                 ID = b->GetNextRequest();
                 
                 SleepConditionVariableCS(b->GetCondition(), b->GetLock(), timeout);
+                if (!b->IsStarted()) {
+                    MyBase.Display("Worker Stopping");
+                    MyBase.Display("Worker cleaning up data");
+                    MyBase.DeletePointer((void*)ID);
+                    delete ID;
+                    MyBase.Display("Worker data clean");
+                    MyBase.Display("Worker releasing lock");
+                    LeaveCriticalSection(b->GetLock());
+                    MyBase.Display("Worker leaving function");
+                    return;
+                }
             }
             IncommingMessageCstr = NULL;
             IncommingMessageCstr = b->GetSocketMessage(*ID);
@@ -339,18 +342,21 @@ namespace Xeon {
         string Line;
 
         string Path = "C:\\ServerFiles\\";
-        std::regex File_Extension_Regex("^[^\s]+\.(html|jpg|jpeg|png|ico|mp4)$");
-        std::regex File_Extension_jpg_Regex("^[^\s]+\.(jpg|jpeg)$");
-        std::regex File_Extension_png_Regex("^[^\s]+\.(png)$");
-        std::regex File_Extension_ico_Regex("^[^\s]+\.(ico)$");
-        std::regex File_Extension_mp4_Regex("^[^\s]+\.(mp4)$");
-
-
+        std::regex File_Extension_Regex("\\.(?:html|jpg|jpeg|png|ico|mp4)$");
+        std::regex File_Extension_jpg_Regex("\\.(?:jpg|jpeg)$");
+        std::regex File_Extension_png_Regex("\\.(?:png)$");
+        std::regex File_Extension_ico_Regex("\\.(?:ico)$");
+        std::regex File_Extension_mp4_Regex("\\.(?:mp4)$");
 
         string Requested_File;
         vector<string> Filter;
+        O2::HTTPEngine HTTPEngine;
+        HTTPEngine.SetServerVersion(SERVER_VERSION);
+        HTTPEngine.SetStatus(O2::HTTPStatus::OK);
+        HTTPEngine.SetContentType(O2::HTTPContentType::HTML);
         vector<string> Tokens = TokenizeString(Request, "\n", Filter);
         //TODO: build a find for an ID for the session, if not found build one and redirect, maybe better for harness
+
         if (Tokens.size() > 0) {
             Tokens = TokenizeString(Tokens[0], " /", Filter);
             for (int i = 0; i < Tokens.size(); i++) {
@@ -360,16 +366,16 @@ namespace Xeon {
                     Requested_File.append(Tokens[i]);
                 }
                 if (std::regex_search(compare, File_Extension_jpg_Regex)) {
-                    DataTypeEnm = JPEG;
+                    HTTPEngine.SetContentType(O2::HTTPContentType::JPEG);
                 }
                 else if (std::regex_search(compare, File_Extension_png_Regex)) {
-                    DataTypeEnm = PNG;
+                    HTTPEngine.SetContentType(O2::HTTPContentType::PNG);
                 }
                 else if (std::regex_search(compare, File_Extension_ico_Regex)) {
-                    DataTypeEnm = ICO;
+                    HTTPEngine.SetContentType(O2::HTTPContentType::ICO);
                 }
                 else if (std::regex_search(compare, File_Extension_mp4_Regex)) {
-                    DataTypeEnm = ICO;
+                    HTTPEngine.SetContentType(O2::HTTPContentType::MP4);
                 }
             }
         }
@@ -382,49 +388,6 @@ namespace Xeon {
             msg.append("File: ");
             msg.append(Requested_File);
             MyBase.Display(msg);
-        }
-        //Create HTTP Headers
-        string headers = "HTTP/1.1 200 OK\n";
-        headers.append("Date: ");
-        //Capture current time
-        string GMTTimeString = "";
-        char* TimeString = new char[26];
-        memset(TimeString, '\0', 26);
-        tm GMTTime;
-        time_t Now = time(NULL);
-        gmtime_s(&GMTTime, &Now);
-        asctime_s(TimeString, 26, &GMTTime);
-        for (int i = 0; i < 26; i++) {
-            if (TimeString[i] == '\n') {
-                TimeString[i] = ' ';
-                break;
-            }
-        }
-        headers.append(TimeString);
-        delete[] TimeString;
-        headers.append("GMT\n");
-        //Add Server Info
-        headers.append("Server: ");
-        headers.append(SERVER_VERSION);
-        headers.append("\n");
-        headers.append("Content-Type: ");
-        if (DataTypeEnm == HTML) {
-            headers.append("text/html");
-        }
-        else if (DataTypeEnm == JPEG) {
-            headers.append("image/jpeg");
-        }
-        else if (DataTypeEnm == PNG) {
-            headers.append("image/png");
-        }
-        else if (DataTypeEnm == ICO) {
-            headers.append("image/vnd.microsoft.icon");
-        }
-        else if (DataTypeEnm == ICO) {
-            headers.append("video/mp4");
-        }
-        else {
-            ErrorAndDie(104, "Unknown content type");
         }
 
         //Get Content from file
@@ -440,12 +403,10 @@ namespace Xeon {
             FileSize = ftell(File);
             fseek(File, 0, SEEK_SET);
 
-            headers.append("\nContent-Length: ");
-            headers.append(to_string(FileSize));
-            headers.append("\nConnection: close");
-            headers.append("\n\n");
+            HTTPEngine.SetContentLength(FileSize);
+            HTTPEngine.SetConnection(O2::HTTPConnection::CLOSED);
 
-            Response.AddData(headers); //Add the HTTP Headers to the response
+            Response.AddData(HTTPEngine.BuildHttpMessage()); //Add the HTTP Headers to the response
             char* FileData = new char[FileSize]; //TODO: this might be the memeory leak
             memset(FileData, '\0', FileSize);
 
@@ -606,11 +567,14 @@ namespace Xeon {
             cin >> Input;
             if (Input == "1") {
                 MyWebServer.Stop();
+                MyBase.Display("Finished stopping, going to sleep");
+                Sleep(10000);
                 system("cls");
                 break;
             }
             else if (Input == "2") {
                 MyWebServer.Stop();
+                Sleep(10000);
                 MyWebServer.Start();
                 Input = "";
                 system("cls");

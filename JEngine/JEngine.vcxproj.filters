@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="ServerFiles">
+      <UniqueIdentifier>{67e071b8-d218-4584-b164-c620af7eb101}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Elements.cpp">
@@ -38,5 +41,44 @@
     <ClInclude Include="tests.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ServerFiles\Button.html">
+      <Filter>ServerFiles</Filter>
+    </None>
+    <None Include="ServerFiles\index.html">
+      <Filter>ServerFiles</Filter>
+    </None>
+    <None Include="ServerFiles\index2.html">
+      <Filter>ServerFiles</Filter>
+    </None>
+    <None Include="ServerFiles\index3.html">
+      <Filter>ServerFiles</Filter>
+    </None>
+    <None Include="ServerFiles\index4.html">
+      <Filter>ServerFiles</Filter>
+    </None>
+    <None Include="ServerFiles\index5.html">
+      <Filter>ServerFiles</Filter>
+    </None>
+    <None Include="ServerFiles\index6.html">
+      <Filter>ServerFiles</Filter>
+    </None>
+    <None Include="ServerFiles\index7.html">
+      <Filter>ServerFiles</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="ServerFiles\favicon.ico">
+      <Filter>ServerFiles</Filter>
+    </Image>
+    <Image Include="ServerFiles\stevie.jpg">
+      <Filter>ServerFiles</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="ServerFiles\TEST.txt">
+      <Filter>ServerFiles</Filter>
+    </Text>
   </ItemGroup>
 </Project>

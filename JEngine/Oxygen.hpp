@@ -623,7 +623,9 @@ namespace O2 {
         HTML = 0,
         JPEG = 1,
         PNG = 2,
-        ICO = 3
+        ICO = 3,
+        MP4 = 4
+
     };
 
     enum HTTPStatus
@@ -656,24 +658,20 @@ namespace O2 {
         HTTPContentType CurrentContentType;
         uint64_t ContentLength;
         HTTPConnection CurrentConnection;
-        std::regex File_Extension_Regex;
-        std::regex File_Extension_jpg_Regex;
-        std::regex File_Extension_png_Regex;
-        std::regex File_Extension_ico_Regex;
 
     public:
         HTTPEngine();
         ~HTTPEngine();
         HTTPEngine(const HTTPEngine&);
         void SetHTTPVersion(HTTPVersion);
-        void SetServer(string);
+        void SetServerVersion(string);
         void SetStatus(HTTPStatus);
         void SetContentType(HTTPContentType);
-        bool SetContentType(string);
-        bool SetContentType(vector<string>);
         void SetContentLength(uint64_t);
         void SetConnection(HTTPConnection);
-};
+        string BuildHttpMessage();
+    };
+
     HTTPEngine::HTTPEngine() {
         CurrentVersion = HTTP11;
         Version = "HTTP/1.1";
@@ -684,23 +682,138 @@ namespace O2 {
         CurrentContentType = HTML;
         ContentLength = 0;
         CurrentConnection = CLOSED;
-        File_Extension_Regex.assign("^[^\s]+\.(html|jpg|jpeg|png|ico)$");
-        File_Extension_jpg_Regex.assign("^[^\s]+\.(jpg|jpeg)$");
-        File_Extension_png_Regex.assign("^[^\s]+\.(png)$");
-        File_Extension_ico_Regex.assign("^[^\s]+\.(ico)$");
+
     }
     HTTPEngine::~HTTPEngine() {
 
     }
     HTTPEngine::HTTPEngine(const HTTPEngine& src) {
+        CurrentVersion = src.CurrentVersion;
         Version = src.Version;
         ServerVersion = src.ServerVersion;
         StatusOK = src.StatusOK;
         StatusNOTFOUND = src.StatusNOTFOUND;
-        File_Extension_Regex = src.File_Extension_Regex;
-        File_Extension_jpg_Regex = src.File_Extension_jpg_Regex;
-        File_Extension_png_Regex = src.File_Extension_png_Regex;
-        File_Extension_ico_Regex = src.File_Extension_ico_Regex;
+        CurrentStatus = src.CurrentStatus;
+        CurrentContentType = src.CurrentContentType;
+        ContentLength = src.ContentLength;
+        CurrentConnection = src.CurrentConnection;
+    }
+
+    void HTTPEngine::SetHTTPVersion(HTTPVersion ver) {
+        CurrentVersion = ver;
+        switch (CurrentVersion) {
+        case HTTP1:
+            Version = "HTTP/1";
+            break;
+        case HTTP11:
+            Version = "HTTP/1.1";
+            break;
+        case HTTP2:
+            Version = "HTTP/2";
+            break;
+        default:
+            CurrentVersion = HTTP11;
+            Version = "HTTP/1.1";
+            break;
+        }
+    }
+    void HTTPEngine::SetServerVersion(string ver) {
+        ServerVersion = ver;
+    }
+    void HTTPEngine::SetStatus(HTTPStatus status) {
+        CurrentStatus = status;
+    }
+    void HTTPEngine::SetContentType(HTTPContentType type) {
+        CurrentContentType = type;
+    }
+    void HTTPEngine::SetContentLength(uint64_t len) {
+        ContentLength = len;
+    }
+    void HTTPEngine::SetConnection(HTTPConnection con) {
+        CurrentConnection = con;
+    }
+    string HTTPEngine::BuildHttpMessage() {
+        //Start with the HTTP Version String
+        string message = Version;
+        message.append(" ");
+
+        //Add Status
+        switch (CurrentStatus) {
+        case OK:
+            message.append(StatusOK);
+            break;
+        case NOTFOUND:
+            message.append(StatusNOTFOUND);
+            break;
+        default:
+            message.append(StatusNOTFOUND);
+            break;
+        }
+
+        //Add Date
+        message.append("Date: ");
+        //Capture current time
+        string GMTTimeString = "";
+        char* TimeString = new char[26];
+        memset(TimeString, '\0', 26);
+        tm GMTTime;
+        time_t Now = time(NULL);
+        gmtime_s(&GMTTime, &Now);
+        asctime_s(TimeString, 26, &GMTTime);
+        for (int i = 0; i < 26; i++) {
+            if (TimeString[i] == '\n') {
+                TimeString[i] = ' ';
+                break;
+            }
+        }
+        message.append(TimeString);
+        delete[] TimeString;
+        message.append("GMT\n");
+
+        //Add Server Info
+        message.append("Server: ");
+        message.append(ServerVersion);
+        message.append("\n");
+
+        if (CurrentStatus != NOTFOUND) {
+            //Add Content Type
+            message.append("Content-Type: ");
+            switch (CurrentContentType) {
+            case HTML:
+                message.append("text/html");
+                break;
+            case JPEG:
+                message.append("image/jpeg");
+                break;
+            case PNG:
+                message.append("image/png");
+                break;
+            case ICO:
+                message.append("image/vnd.microsoft.icon");
+                break;
+            case MP4:
+                message.append("video/mp4");
+                break;
+            default:
+                ErrorAndDie(104, "Unknown content type");
+                break;
+            }
+
+            //Add Content Length
+            message.append("\nContent-Length: ");
+            message.append(to_string(ContentLength));
+
+            //Add Connection
+            if (CurrentConnection == KEEPALIVE) {
+                message.append("\nConnection: keep-alive");
+            }
+            else {
+                message.append("\nConnection: close");
+            }
+            message.append("\n\n");
+        }
+        string ret = message;
+        return ret;
     }
 #pragma endregion
 
