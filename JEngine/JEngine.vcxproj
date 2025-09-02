@@ -170,12 +170,6 @@
     <None Include="ServerFiles\GPT\index7.html" />
     <None Include="ServerFiles\Hello.html" />
     <None Include="ServerFiles\index.html" />
-    <None Include="ServerFiles\index2.html" />
-    <None Include="ServerFiles\index3.html" />
-    <None Include="ServerFiles\index4.html" />
-    <None Include="ServerFiles\index5.html" />
-    <None Include="ServerFiles\index6.html" />
-    <None Include="ServerFiles\index7.html" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="ServerFiles\favicon.ico" />

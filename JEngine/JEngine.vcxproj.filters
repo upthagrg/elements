@@ -49,24 +49,6 @@
     <None Include="ServerFiles\index.html">
       <Filter>ServerFiles</Filter>
     </None>
-    <None Include="ServerFiles\index2.html">
-      <Filter>ServerFiles</Filter>
-    </None>
-    <None Include="ServerFiles\index3.html">
-      <Filter>ServerFiles</Filter>
-    </None>
-    <None Include="ServerFiles\index4.html">
-      <Filter>ServerFiles</Filter>
-    </None>
-    <None Include="ServerFiles\index5.html">
-      <Filter>ServerFiles</Filter>
-    </None>
-    <None Include="ServerFiles\index6.html">
-      <Filter>ServerFiles</Filter>
-    </None>
-    <None Include="ServerFiles\index7.html">
-      <Filter>ServerFiles</Filter>
-    </None>
     <None Include="ServerFiles\ContentNotFound.html" />
     <None Include="ServerFiles\Bootstraptesting.html">
       <Filter>ServerFiles</Filter>
