@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Interactive Modular HTML Page</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f5f8fa;
+      color: #333;
+      transition: background 0.3s, color 0.3s;
+    }
+    header {
+      background: #4a90e2;
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+    h1, h2 {
+      margin: 0 0 10px;
+    }
+    main {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      padding: 20px;
+      max-width: 1200px;
+      margin: auto;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      transition: transform 0.2s, background 0.3s, color 0.3s;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+    button {
+      background: #4a90e2;
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.2s, transform 0.1s;
+      margin: 5px 3px;
+    }
+    button:hover {
+      background: #357ab8;
+      transform: scale(1.05);
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background: #f0f4f8;
+    }
+    input[type="text"] {
+      padding: 6px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    footer {
+      text-align: center;
+      padding: 15px;
+      background: #e9eef2;
+      color: #555;
+    }
+    /* Dark mode */
+    body.dark {
+      background: #1e1e1e;
+      color: #eee;
+    }
+    body.dark header {
+      background: #222;
+    }
+    body.dark .card {
+      background: #2c2c2c;
+      color: #ddd;
+    }
+    body.dark footer {
+      background: #222;
+      color: #aaa;
+    }
+    /* Viewport Card */
+    #viewport {
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      text-align: center;
+      background: linear-gradient(135deg, #e3f2fd, #f9f9f9);
+      border: 2px dashed #4a90e2;
+      grid-column: span 2;
+    }
+    body.dark #viewport {
+      background: linear-gradient(135deg, #2a2a2a, #1e1e1e);
+      border: 2px dashed #888;
+    }
+    /* Busy overlay */
+    #busyOverlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    #busyOverlay.active {
+      display: flex;
+    }
+
+    /* Ring spinner (default) */
+    .spinner.ring {
+      border: 8px solid #f3f3f3;
+      border-top: 8px solid #4a90e2;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      animation: spin 1s linear infinite;
+    }
+
+    /* Dual ring spinner */
+    .spinner.dual {
+      display: inline-block;
+      width: 60px;
+      height: 60px;
+    }
+    .spinner.dual:after {
+      content: " ";
+      display: block;
+      width: 46px;
+      height: 46px;
+      margin: 8px;
+      border-radius: 50%;
+      border: 6px solid #4a90e2;
+      border-color: #4a90e2 transparent #4a90e2 transparent;
+      animation: spin 1.2s linear infinite;
+    }
+
+    /* Bouncing dots */
+    .spinner.dots {
+      display: flex;
+      justify-content: space-between;
+      width: 60px;
+    }
+    .spinner.dots div {
+      width: 12px;
+      height: 12px;
+      background: #4a90e2;
+      border-radius: 50%;
+      animation: bounce 0.6s infinite alternate;
+    }
+    .spinner.dots div:nth-child(2) { animation-delay: 0.2s; }
+    .spinner.dots div:nth-child(3) { animation-delay: 0.4s; }
+
+    /* Pulsing dot (fixed: no spin) */
+    .spinner.pulse {
+      width: 20px;
+      height: 20px;
+      background: #4a90e2;
+      border-radius: 50%;
+      animation: pulse 1s infinite alternate;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(1.5); opacity: 0.5; }
+    }
+
+    /* Loading bar */
+    .spinner.bar {
+      width: 50px;
+      height: 10px;
+      background: #4a90e2;
+      animation: loadbar 1s infinite alternate ease-in-out;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes bounce {
+      from { transform: translateY(0); }
+      to { transform: translateY(-15px); }
+    }
+    @keyframes loadbar {
+      from { transform: scaleX(0.5); opacity: 0.6; }
+      to { transform: scaleX(1.5); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Interactive Modular Example</h1>
+    <p>A clean design with CSS, JavaScript, and a live viewport</p>
+  </header>
+
+  <main>
+    <!-- Viewport Card -->
+    <div class="card" id="viewport">
+      <p>👋 Welcome! Click a button on another card to update this viewport.</p>
+    </div>
+
+    <!-- Image Card -->
+    <div class="card">
+      <h2>Image Example</h2>
+      <img src="stevie.jpg" alt="Stevie the cat">
+      <p>Here’s Stevie displayed directly.</p>
+      <a href="stevie.jpg" target="_blank">
+        <button>View Stevie.jpg</button>
+      </a>
+      <br><br>
+      <button onclick="updateViewport('🐱 Stevie says hello!')">Send to Viewport</button>
+    </div>
+
+    <!-- List Card -->
+    <div class="card">
+      <h2>List Example</h2>
+      <ul>
+        <li>Clean modular structure</li>
+        <li>Clickable links</li>
+        <li>Images and text</li>
+        <li>Grid-based layout</li>
+      </ul>
+      <button onclick="updateViewport('📋 You clicked the List card!')">Send to Viewport</button>
+    </div>
+
+    <!-- Table Card -->
+    <div class="card">
+      <h2>Table Example</h2>
+      <table>
+        <tr>
+          <th>Feature</th>
+          <th>Example</th>
+        </tr>
+        <tr>
+          <td>Text formatting</td>
+          <td><strong>Bold</strong>, <em>Italic</em>, <code>Code</code></td>
+        </tr>
+        <tr>
+          <td>Links</td>
+          <td><a href="https://www.example.com">External site</a></td>
+        </tr>
+      </table>
+      <button onclick="updateViewport('📊 Table card sent data to viewport!')">Send to Viewport</button>
+    </div>
+
+    <!-- Form Card -->
+    <div class="card">
+      <h2>Form Example</h2>
+      <form onsubmit="return handleForm(event)">
+        <label for="name">Name: </label><br>
+        <input type="text" id="name" name="name" required>
+        <br><br>
+        <input type="submit" value="Submit">
+      </form>
+      <p id="formMessage" style="margin-top:10px; color: green;"></p>
+      <button onclick="updateViewport('📝 Form card interacted with viewport!')">Send to Viewport</button>
+    </div>
+
+    <!-- File Cards -->
+    <div class="card">
+      <h2>PDF Example</h2>
+      <p>A link to an example PDF file.</p>
+      <a href="example.pdf" target="_blank">
+        <button>Open PDF</button>
+      </a>
+      <button onclick="updateViewport('📄 PDF card triggered!')">Send to Viewport</button>
+    </div>
+
+    <div class="card">
+      <h2>Word Document</h2>
+      <p>A sample Microsoft Word document link.</p>
+      <a href="example.docx" target="_blank">
+        <button>Open DOCX</button>
+      </a>
+      <button onclick="updateViewport('📝 Word card triggered!')">Send to Viewport</button>
+    </div>
+
+    <div class="card">
+      <h2>Excel Spreadsheet</h2>
+      <p>A sample Excel file for download or viewing.</p>
+      <a href="example.xlsx" target="_blank">
+        <button>Open XLSX</button>
+      </a>
+      <button onclick="updateViewport('📊 Excel card triggered!')">Send to Viewport</button>
+    </div>
+
+    <!-- Replaced Text File Card with Test Overlay -->
+    <div class="card">
+      <h2>Test Overlay</h2>
+      <p>Click to test busy overlay for 5 seconds.</p>
+      <button onclick="testOverlay()">Run Test</button>
+    </div>
+
+    <!-- AJAX Card 1 -->
+    <div class="card">
+      <h2>AJAX Event A</h2>
+      <p>Sends <code>XEvent-CardA</code> to <code>localhost:8081</code>.</p>
+
+      <label for="ajaxInputA">Enter value for A:</label><br>
+      <input type="text" id="ajaxInputA" placeholder="Type something for A..." />
+      <br><br>
+      <button onclick="fetchFromServer('CardA')">Send Event A</button>
+    </div>
+
+    <!-- AJAX Card 2 -->
+    <div class="card">
+      <h2>AJAX Event B</h2>
+      <p>Sends <code>XEvent-CardB</code> to <code>localhost:8081</code>.</p>
+
+      <label for="ajaxInputB">Enter value for B:</label><br>
+      <input type="text" id="ajaxInputB" placeholder="Type something for B..." />
+      <br><br>
+      <button onclick="fetchFromServer('CardB')">Send Event B</button>
+    </div>
+
+    <!-- Counter Card -->
+    <div class="card">
+      <h2>Counter</h2>
+      <p id="counterValue">0</p>
+      <button onclick="changeCounter(1)">+1</button>
+      <button onclick="changeCounter(-1)">-1</button>
+      <button onclick="resetCounter()">Reset</button>
+      <button onclick="sendCounter()">Send Count to Viewport</button>
+    </div>
+
+<!-- Interface Options Card -->
+<div class="card">
+  <h2>Interface Options</h2>
+  <p>Choose a style for the busy overlay spinner.</p>
+  <select id="spinnerChoice" onchange="setSpinnerType(this.value)">
+    <option value="ring" selected>Ring Spinner</option>
+    <option value="dual">Dual Ring</option>
+    <option value="dots">Bouncing Dots</option>
+    <option value="pulse">Pulsing Dot</option>
+    <option value="bar">Loading Bar</option>
+  </select>
+  <br><br>
+  <button onclick="toggleDarkMode()">Toggle Dark Mode</button>
+</div>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 My Interactive Example Page</p>
+  </footer>
+
+  <!-- Busy Overlay -->
+  <div id="busyOverlay">
+    <div class="spinner"></div>
+  </div>
+
+  <script>
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark");
+    }
+
+    function handleForm(event) {
+      event.preventDefault();
+      const name = document.getElementById("name").value;
+      const message = "Hello, " + name + "! Thanks for submitting.";
+      document.getElementById("formMessage").innerText = message;
+      updateViewport("👋 " + message);
+      return false;
+    }
+
+    function updateViewport(content) {
+      document.getElementById("viewport").innerHTML = "<div style='width:100%'>" + content + "</div>";
+    }
+
+    let currentSpinnerType = "ring";
+
+    function setSpinnerType(type) {
+      currentSpinnerType = type;
+    }
+
+    function showOverlay() {
+      const overlay = document.getElementById("busyOverlay");
+      overlay.innerHTML = "";
+
+      let spinnerHTML = "";
+      switch (currentSpinnerType) {
+        case "dual":
+          spinnerHTML = `<div class="spinner dual"></div>`;
+          break;
+        case "dots":
+          spinnerHTML = `<div class="spinner dots"><div></div><div></div><div></div></div>`;
+          break;
+        case "pulse":
+          spinnerHTML = `<div class="spinner pulse"></div>`;
+          break;
+        case "bar":
+          spinnerHTML = `<div class="spinner bar"></div>`;
+          break;
+        default:
+          spinnerHTML = `<div class="spinner ring"></div>`;
+      }
+
+      overlay.innerHTML = spinnerHTML;
+      overlay.classList.add("active");
+    }
+
+    function hideOverlay() {
+      document.getElementById("busyOverlay").classList.remove("active");
+    }
+
+    function fetchFromServer(eventName) {
+      const inputId = eventName === "CardA" ? "ajaxInputA" : "ajaxInputB";
+      const value = document.getElementById(inputId).value;
+      const url = "http://localhost:8081/?event=XEvent-" + eventName + "&value=" + encodeURIComponent(value);
+
+      showOverlay();
+      fetch(url)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error("Network response was not ok: " + response.statusText);
+          }
+          return response.text();
+        })
+        .then(html => {
+          updateViewport(html);
+        })
+        .catch(error => {
+          updateViewport("❌ Error fetching from server: " + error.message);
+        })
+        .finally(() => {
+          hideOverlay();
+        });
+    }
+
+    function testOverlay() {
+      showOverlay();
+      setTimeout(hideOverlay, 5000);
+    }
+
+    // --- Counter ---
+    let counter = 0;
+    function changeCounter(amount) {
+      counter += amount;
+      document.getElementById("counterValue").innerText = counter;
+    }
+    function resetCounter() {
+      counter = 0;
+      document.getElementById("counterValue").innerText = counter;
+    }
+    function sendCounter() {
+      updateViewport("🔢 Counter value: " + counter);
+    }
+  </script>
+</body>
+</html>

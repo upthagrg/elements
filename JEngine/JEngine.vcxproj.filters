@@ -77,6 +77,12 @@
     <None Include="ServerFiles\GPT\index7.html">
       <Filter>ServerFiles</Filter>
     </None>
+    <None Include="ServerFiles\GPT\Index8.html">
+      <Filter>ServerFiles</Filter>
+    </None>
+    <None Include="ServerFiles\GPT\index9.html">
+      <Filter>ServerFiles</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="ServerFiles\favicon.ico">

@@ -168,6 +168,8 @@
     <None Include="ServerFiles\GPT\index5.html" />
     <None Include="ServerFiles\GPT\index6.html" />
     <None Include="ServerFiles\GPT\index7.html" />
+    <None Include="ServerFiles\GPT\Index8.html" />
+    <None Include="ServerFiles\GPT\index9.html" />
     <None Include="ServerFiles\Hello.html" />
     <None Include="ServerFiles\index.html" />
   </ItemGroup>
