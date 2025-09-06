@@ -426,7 +426,9 @@
     function fetchFromServer(eventName) {
       const inputId = eventName === "CardA" ? "ajaxInputA" : "ajaxInputB";
       const value = document.getElementById(inputId).value;
-      const url = "http://localhost:8081/?event=XEvent-" + eventName + "&value=" + encodeURIComponent(value);
+      //const url = "http://localhost:8081/?event=XEvent-" + eventName + "&value=" + encodeURIComponent(value);
+      //const url = "http://localhost:80/?event=XEvent-" + eventName + "&value=" + encodeURIComponent(value);
+      const url = "http://localhost:80/" + encodeURIComponent(value);
 
       showOverlay();
       fetch(url)

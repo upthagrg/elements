@@ -398,7 +398,7 @@ namespace Xeon {
                     Requested_File.append("\\");
                 }
                 if (std::regex_search(compare, File_Extension_Regex)) {
-                    //Requested_File.append(Path);
+                    Requested_File.append(Path);
                     Requested_File.append(Tokens[i]);
                     reset = false;
                 }
